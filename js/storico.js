@@ -1,3 +1,5 @@
+import { datiDefault } from './dati-default.js';
+
 function disegnaGraficoPeso(canvas, punti) {
   const ctx = canvas.getContext('2d');
   const w = canvas.width;
@@ -59,14 +61,43 @@ export function renderStorico(container, data) {
 
   disegnaGraficoPeso(container.querySelector('#grafico-peso'), giorniConPeso);
 
+  // Costruzione via DOM + textContent: `nota` è testo libero digitato
+  // dall'utente e non deve MAI finire in una template string assegnata a
+  // innerHTML (stesso accorgimento già adottato in js/oggi.js per gli extra).
   const listaCarichi = container.querySelector('#lista-carichi');
-  listaCarichi.innerHTML = Object.entries(data.esercizi)
-    .filter(([, e]) => e.storico.length > 0)
-    .map(([, e]) => {
+  const vociCarichi = Object.entries(data.esercizi).filter(([, e]) => e.storico.length > 0);
+
+  if (vociCarichi.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = 'Nessun allenamento registrato ancora.';
+    listaCarichi.appendChild(li);
+  } else {
+    vociCarichi.forEach(([id, e]) => {
       const ultima = e.storico[e.storico.length - 1];
-      return `<li><strong>${e.nome}</strong>: ${e.ultimoPeso}kg (ultima sessione ${ultima.data}: reps ${ultima.reps.join('/')})</li>`;
-    })
-    .join('') || '<li>Nessun allenamento registrato ancora.</li>';
+      const conPeso = datiDefault.esercizi[id]?.tracciaProgressione !== false;
+
+      const li = document.createElement('li');
+      const nome = document.createElement('strong');
+      nome.textContent = e.nome;
+      li.appendChild(nome);
+
+      const dettagli = [];
+      if (conPeso) dettagli.push(`${e.ultimoPeso}kg`);
+      dettagli.push(`ultima sessione ${ultima.data}`);
+      dettagli.push(`reps ${ultima.reps.join('/')}`);
+      if (ultima.rpe != null) dettagli.push(`RPE ${ultima.rpe}`);
+      li.appendChild(document.createTextNode(`: ${dettagli.join(' — ')}`));
+
+      if (ultima.nota) {
+        const nota = document.createElement('div');
+        nota.className = 'nota';
+        nota.textContent = `Nota: ${ultima.nota}`;
+        li.appendChild(nota);
+      }
+
+      listaCarichi.appendChild(li);
+    });
+  }
 
   container.querySelector('#btn-backup').addEventListener('click', () => esportaBackup(data));
 }

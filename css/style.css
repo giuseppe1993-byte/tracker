@@ -69,6 +69,12 @@ button {
   min-height: 44px;
 }
 
+.nota {
+  font-style: italic;
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+
 .errore {
   color: #b91c1c;
   padding: 1rem;
