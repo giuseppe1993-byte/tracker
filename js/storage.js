@@ -4,7 +4,7 @@ const ERRORE_CORROTTI = 'Dati salvati corrotti, impossibile leggerli.';
 
 export function getDefaultData(datiDefault) {
   return {
-    mesociclo: { dataInizio: null },
+    mesociclo: { dataInizio: null, ultimaSessioneFase2: null },
     esercizi: structuredClone(datiDefault.esercizi),
     pasti: {}
   };

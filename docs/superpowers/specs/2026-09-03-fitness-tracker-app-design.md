@@ -44,7 +44,7 @@ App per un solo utente, poche schermate, nessuna necessità di sync multi-dispos
 - A fine sessione (o per esercizio), calcolo doppia progressione (vedi Logica di progressione).
 - Sezione separata per **sessioni extra leggere** (facoltative, Extra A/Extra B da `piano_alimentare.md`), stessa meccanica di input e progressione, tracciate indipendentemente dal mesociclo principale.
 - Un esercizio pianificato ma non svolto (skip) non conta come fallimento — nessun dato registrato, si ritenta allo stesso peso/target la prossima occorrenza.
-- **Semplificazione deliberata**: in Fase 2 l'app mostra contemporaneamente sia la sessione Upper sia la Lower e lascia all'utente la scelta di quale registrare, invece di dedurre quale tocchi oggi. Non è un bug: evita di dover tracciare una rotazione delle sessioni e resta corretto anche se l'utente salta o inverte un allenamento.
+- **Alternanza Upper/Lower**: in Fase 2 (e durante il deload, che riusa le sessioni di Fase 2), l'app tiene traccia di quale sessione è stata salvata per ultima (`mesociclo.ultimaSessioneFase2`) e propone quella opposta come "consigliata oggi" — se ieri hai salvato Upper, oggi la app apre su Lower. L'altra resta comunque visibile ed etichettata "(alternativa)", selezionabile se si vuole ripetere/invertire deliberatamente. Nessuna sessione viene nascosta: resta corretto anche se l'utente salta un giorno o fa due sessioni uguali di fila.
 - **Esercizi senza carico esterno**: un esercizio con `tracciaProgressione: false` in `dati-default.js` (es. plank, dove `rangeMin`/`rangeMax` sono secondi di tenuta) non passa dalla doppia progressione: si registrano solo reps/RPE/nota, senza peso né azione di aumento/diminuzione.
 
 ### 3. Storico

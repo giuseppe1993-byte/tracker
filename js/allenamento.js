@@ -89,7 +89,7 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDe
   return li;
 }
 
-function renderSessione(container, titolo, sessione, data, persist, riduciSerie) {
+function renderSessione(container, titolo, sessione, data, persist, riduciSerie, aggiornaAlternanza) {
   const div = document.createElement('div');
   div.innerHTML = `<h3>${titolo}</h3>`;
   const lista = document.createElement('ul');
@@ -97,7 +97,14 @@ function renderSessione(container, titolo, sessione, data, persist, riduciSerie)
     const esercizioConfig = datiDefault.esercizi[id];
     const esercizioStato = data.esercizi[id];
     const serieEffettive = riduciSerie ? applicaDeload(serie) : serie;
-    lista.appendChild(renderEsercizio(esercizioConfig, esercizioStato, serieEffettive, riduciSerie, () => persist()));
+    lista.appendChild(renderEsercizio(esercizioConfig, esercizioStato, serieEffettive, riduciSerie, () => {
+      if (aggiornaAlternanza) {
+        // Ricorda quale sessione Upper/Lower è stata fatta per ultima, così la
+        // volta dopo l'app propone l'altra invece di lasciare all'utente la scelta a caso.
+        data.mesociclo.ultimaSessioneFase2 = sessione.nome;
+      }
+      persist();
+    }));
   });
   div.appendChild(lista);
   container.appendChild(div);
@@ -108,6 +115,7 @@ export function renderAllenamento(container, data, persist) {
   const settimana = calcolaSettimana(data.mesociclo.dataInizio, oggiISO());
   const fase = calcolaFase(settimana);
   const isDeload = fase === 'deload';
+  const isFase2 = fase === 'fase2' || fase === 'deload';
 
   const intestazione = document.createElement('p');
   intestazione.textContent = `Mesociclo 1 — Settimana ${settimana} (${fase})`;
@@ -120,9 +128,19 @@ export function renderAllenamento(container, data, persist) {
     const avviso = document.createElement('p');
     avviso.textContent = 'Mesociclo 1 completato — Mesociclo 2 da definire. Nel frattempo puoi usare le sessioni extra qui sotto.';
     container.appendChild(avviso);
+  } else if (isFase2 && sessioni.length > 1) {
+    // Alterna Upper/Lower in base all'ultima sessione fase2 salvata (non alla
+    // fase, che dura settimane): se ieri hai fatto Upper, oggi propone Lower.
+    const ultima = data.mesociclo.ultimaSessioneFase2;
+    const suggerita = sessioni.find((s) => s.nome !== ultima) || sessioni[0];
+    const altre = sessioni.filter((s) => s !== suggerita);
+    renderSessione(container, `${suggerita.nome} (consigliata oggi)`, suggerita, data, persist, isDeload, true);
+    altre.forEach((sessione) => {
+      renderSessione(container, `${sessione.nome} (alternativa)`, sessione, data, persist, isDeload, true);
+    });
   } else {
     sessioni.forEach((sessione) => {
-      renderSessione(container, sessione.nome, sessione, data, persist, isDeload);
+      renderSessione(container, sessione.nome, sessione, data, persist, isDeload, false);
     });
   }
 
@@ -131,6 +149,6 @@ export function renderAllenamento(container, data, persist) {
   container.appendChild(titoloExtra);
 
   Object.values(datiDefault.sessioniExtra).forEach((sessione) => {
-    renderSessione(container, sessione.nome, sessione, data, persist, false);
+    renderSessione(container, sessione.nome, sessione, data, persist, false, false);
   });
 }
