@@ -1,19 +1,22 @@
+// `tracciaProgressione: false` = esercizio senza carico esterno (es. plank, dove
+// rangeMin/rangeMax sono secondi di tenuta e non ripetizioni): niente doppia
+// progressione, niente "ultimo peso", si registrano solo reps/RPE/nota.
 export const datiDefault = {
   esercizi: {
-    squat: { nome: 'Squat (bilanciere)', rangeMin: 6, rangeMax: 10, tipo: 'bilanciere', ultimoPeso: 20, fallimentiConsecutivi: 0, storico: [] },
-    panca: { nome: 'Panca piana (bilanciere)', rangeMin: 6, rangeMax: 10, tipo: 'bilanciere', ultimoPeso: 20, fallimentiConsecutivi: 0, storico: [] },
-    rematore: { nome: 'Rematore bilanciere', rangeMin: 8, rangeMax: 10, tipo: 'bilanciere', ultimoPeso: 20, fallimentiConsecutivi: 0, storico: [] },
-    militarypress: { nome: 'Military Press (manubri)', rangeMin: 8, rangeMax: 10, tipo: 'manubri', ultimoPeso: 8, fallimentiConsecutivi: 0, storico: [] },
-    affondi: { nome: 'Affondi camminati (manubri)', rangeMin: 10, rangeMax: 12, tipo: 'manubri', ultimoPeso: 8, fallimentiConsecutivi: 0, storico: [] },
-    latmachine: { nome: 'Lat machine / Trazioni al cavo', rangeMin: 10, rangeMax: 12, tipo: 'manubri', ultimoPeso: 20, fallimentiConsecutivi: 0, storico: [] },
-    staccorumeno: { nome: 'Stacco rumeno (bilanciere)', rangeMin: 8, rangeMax: 10, tipo: 'bilanciere', ultimoPeso: 20, fallimentiConsecutivi: 0, storico: [] },
-    goodmorning: { nome: 'Good morning (bilanciere)', rangeMin: 10, rangeMax: 12, tipo: 'bilanciere', ultimoPeso: 10, fallimentiConsecutivi: 0, storico: [] },
-    calfraise: { nome: 'Calf raise', rangeMin: 15, rangeMax: 20, tipo: 'manubri', ultimoPeso: 10, fallimentiConsecutivi: 0, storico: [] },
-    plank: { nome: 'Plank', rangeMin: 30, rangeMax: 45, tipo: 'manubri', ultimoPeso: 0, fallimentiConsecutivi: 0, storico: [] },
-    curlbicipiti: { nome: 'Curl bicipiti (manubri)', rangeMin: 12, rangeMax: 15, tipo: 'manubri', ultimoPeso: 6, fallimentiConsecutivi: 0, storico: [] },
-    pushdown: { nome: 'Push down tricipiti (cavo)', rangeMin: 12, rangeMax: 15, tipo: 'manubri', ultimoPeso: 6, fallimentiConsecutivi: 0, storico: [] },
-    alzatelaterali: { nome: 'Alzate laterali (manubri)', rangeMin: 12, rangeMax: 15, tipo: 'manubri', ultimoPeso: 4, fallimentiConsecutivi: 0, storico: [] },
-    shrug: { nome: 'Shrug (bilanciere)', rangeMin: 12, rangeMax: 15, tipo: 'bilanciere', ultimoPeso: 20, fallimentiConsecutivi: 0, storico: [] }
+    squat: { nome: 'Squat (bilanciere)', rangeMin: 6, rangeMax: 10, tipo: 'bilanciere', ultimoPeso: 20, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    panca: { nome: 'Panca piana (bilanciere)', rangeMin: 6, rangeMax: 10, tipo: 'bilanciere', ultimoPeso: 20, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    rematore: { nome: 'Rematore bilanciere', rangeMin: 8, rangeMax: 10, tipo: 'bilanciere', ultimoPeso: 20, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    militarypress: { nome: 'Military Press (manubri)', rangeMin: 8, rangeMax: 10, tipo: 'manubri', ultimoPeso: 8, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    affondi: { nome: 'Affondi camminati (manubri)', rangeMin: 10, rangeMax: 12, tipo: 'manubri', ultimoPeso: 8, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    latmachine: { nome: 'Lat machine / Trazioni al cavo', rangeMin: 10, rangeMax: 12, tipo: 'manubri', ultimoPeso: 20, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    staccorumeno: { nome: 'Stacco rumeno (bilanciere)', rangeMin: 8, rangeMax: 10, tipo: 'bilanciere', ultimoPeso: 20, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    goodmorning: { nome: 'Good morning (bilanciere)', rangeMin: 10, rangeMax: 12, tipo: 'bilanciere', ultimoPeso: 10, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    calfraise: { nome: 'Calf raise', rangeMin: 15, rangeMax: 20, tipo: 'manubri', ultimoPeso: 10, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    plank: { nome: 'Plank (secondi di tenuta)', rangeMin: 30, rangeMax: 45, tipo: 'manubri', ultimoPeso: 0, fallimentiConsecutivi: 0, tracciaProgressione: false, storico: [] },
+    curlbicipiti: { nome: 'Curl bicipiti (manubri)', rangeMin: 12, rangeMax: 15, tipo: 'manubri', ultimoPeso: 6, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    pushdown: { nome: 'Push down tricipiti (cavo)', rangeMin: 12, rangeMax: 15, tipo: 'manubri', ultimoPeso: 6, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    alzatelaterali: { nome: 'Alzate laterali (manubri)', rangeMin: 12, rangeMax: 15, tipo: 'manubri', ultimoPeso: 4, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] },
+    shrug: { nome: 'Shrug (bilanciere)', rangeMin: 12, rangeMax: 15, tipo: 'bilanciere', ultimoPeso: 20, fallimentiConsecutivi: 0, tracciaProgressione: true, storico: [] }
   },
   sessioniPerFase: {
     fase1: [

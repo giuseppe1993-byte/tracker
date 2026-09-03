@@ -13,14 +13,24 @@ function sessioniDisponibili(fase) {
   return [];
 }
 
+function tracciaProgressione(esercizioConfig) {
+  return esercizioConfig.tracciaProgressione !== false;
+}
+
 function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, onSalva) {
+  const conPeso = tracciaProgressione(esercizioConfig);
+  const unita = conPeso ? 'reps' : 'sec/reps';
   const li = document.createElement('li');
   const inputsReps = Array.from({ length: serieProgrammate }, (_, i) => `
     <input type="number" class="rep-input" data-serie="${i}" placeholder="Serie ${i + 1} (target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax})" min="0">
   `).join('');
 
+  const riepilogo = conPeso
+    ? `ultimo peso: ${esercizioStato.ultimoPeso}kg, target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax} ${unita}, ${serieProgrammate} serie`
+    : `a corpo libero, target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax} ${unita}, ${serieProgrammate} serie`;
+
   li.innerHTML = `
-    <strong>${esercizioConfig.nome}</strong> — ultimo peso: ${esercizioStato.ultimoPeso}kg, target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax} reps, ${serieProgrammate} serie
+    <strong>${esercizioConfig.nome}</strong> — ${riepilogo}
     <div>${inputsReps}</div>
     <input type="number" class="rpe-input" placeholder="RPE (1-10)" min="1" max="10">
     <input type="text" class="nota-input" placeholder="Nota (facoltativa)">
@@ -36,18 +46,27 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, onSa
     }
     const rpe = Number(li.querySelector('.rpe-input').value) || null;
     const nota = li.querySelector('.nota-input').value.trim();
-    const risultato = calcolaProgressione(esercizioStato, { reps });
 
-    esercizioStato.storico.push({ data: oggiISO(), peso: esercizioStato.ultimoPeso, reps, rpe, nota });
-    esercizioStato.ultimoPeso = risultato.nuovoPeso;
-    esercizioStato.fallimentiConsecutivi = risultato.nuoviFallimentiConsecutivi;
+    let messaggio;
+    if (!conPeso) {
+      // Esercizio senza carico: si registra solo la prestazione, nessun peso da aggiornare.
+      esercizioStato.storico.push({ data: oggiISO(), peso: null, reps, rpe, nota });
+      messaggio = 'Sessione salvata (esercizio a corpo libero, nessun carico da aggiornare).';
+    } else {
+      const risultato = calcolaProgressione(esercizioStato, { reps });
+      esercizioStato.storico.push({ data: oggiISO(), peso: esercizioStato.ultimoPeso, reps, rpe, nota });
+      esercizioStato.ultimoPeso = risultato.nuovoPeso;
+      esercizioStato.fallimentiConsecutivi = risultato.nuoviFallimentiConsecutivi;
 
-    const messaggi = {
-      aumenta: `Sessione salvata. La prossima volta: +peso → ${risultato.nuovoPeso}kg.`,
-      diminuisci: `Sessione salvata. La prossima volta: -peso → ${risultato.nuovoPeso}kg.`,
-      invariato: `Sessione salvata. La prossima volta: stesso peso (${risultato.nuovoPeso}kg).`
-    };
-    li.querySelector('.esito').textContent = messaggi[risultato.azione];
+      const messaggi = {
+        aumenta: `Sessione salvata. La prossima volta: +peso → ${risultato.nuovoPeso}kg.`,
+        diminuisci: `Sessione salvata. La prossima volta: -peso → ${risultato.nuovoPeso}kg.`,
+        invariato: `Sessione salvata. La prossima volta: stesso peso (${risultato.nuovoPeso}kg).`
+      };
+      messaggio = messaggi[risultato.azione];
+    }
+
+    li.querySelector('.esito').textContent = messaggio;
     onSalva();
   });
 
