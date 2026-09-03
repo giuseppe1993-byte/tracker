@@ -25,7 +25,7 @@ App per un solo utente, poche schermate, nessuna necessità di sync multi-dispos
 
 ### 1. Oggi
 
-- Selettore giornata: **Sera / Mattina a digiuno / Riposo** — determina quale pasto è pre/post-workout (vedi `piano_alimentare.md`, sezione "Variante: allenamento al mattino a digiuno").
+- Selettore giornata: **Sera / Mattina a digiuno / Riposo** — determina quale pasto è pre/post-workout e la sua ricetta (vedi `piano_alimentare.md`, sezione "Variante: allenamento al mattino a digiuno"). Con "Mattina a digiuno", il Pasto 1 usa la ricetta alternativa (crema di riso + whey + albume) invece di quella standard, e l'app mostra il promemoria "+12g olio EVO a pranzo/cena" per compensare i grassi.
 - Checklist dei 4 pasti fissi (nome, grammature, orario indicativo in base al selettore) con checkbox "fatto".
 - Pulsante "+ aggiungi" per loggare cibo/nota fuori piano (testo libero, es. "couscous 150g" o "sgarro pizza").
 - Campo peso corporeo (opzionale, se pesato oggi).
