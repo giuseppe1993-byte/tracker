@@ -61,9 +61,26 @@ export function renderOggi(container, data, persist) {
 
   function renderExtra() {
     const lista = container.querySelector('#lista-extra');
-    lista.innerHTML = giorno.extra
-      .map((e, i) => `<li>${e.testo} <button type="button" data-i="${i}" class="rimuovi-extra">rimuovi</button></li>`)
-      .join('');
+    lista.innerHTML = '';
+
+    giorno.extra.forEach((e, i) => {
+      const li = document.createElement('li');
+
+      // Add text content as plain text (not HTML)
+      const text = document.createTextNode(e.testo + ' ');
+      li.appendChild(text);
+
+      // Add remove button
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.i = i;
+      btn.className = 'rimuovi-extra';
+      btn.textContent = 'rimuovi';
+      li.appendChild(btn);
+
+      lista.appendChild(li);
+    });
+
     lista.querySelectorAll('.rimuovi-extra').forEach((btn) => {
       btn.addEventListener('click', () => {
         giorno.extra.splice(Number(btn.dataset.i), 1);
