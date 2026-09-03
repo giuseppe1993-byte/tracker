@@ -42,6 +42,40 @@ function unisciEsercizi(datiDefault, salvati) {
   return risultato;
 }
 
+// Le installazioni precedenti al motore pasti adattivo salvavano
+// pasti[data] = {tipoGiorno, fatti, extra, peso} (checklist a 4 pasti fissi).
+// Si riconosce dal campo tipoGiorno (assente nel formato nuovo) e si converte
+// al volo: si perde lo storico dei "pasti fatti" (erano solo spunte, nessun
+// dato nutrizionale recuperabile), si preserva il peso già loggato.
+function eFormatoVecchio(voce) {
+  return isOggetto(voce) && 'tipoGiorno' in voce;
+}
+
+function normalizzaGiorno(voce) {
+  if (eFormatoVecchio(voce)) {
+    return {
+      peso: typeof voce.peso === 'number' ? voce.peso : null,
+      pastiLoggati: 0,
+      alimenti: [],
+      eventiAllenamento: []
+    };
+  }
+  return {
+    peso: typeof voce.peso === 'number' ? voce.peso : null,
+    pastiLoggati: typeof voce.pastiLoggati === 'number' ? voce.pastiLoggati : 0,
+    alimenti: Array.isArray(voce.alimenti) ? voce.alimenti : [],
+    eventiAllenamento: Array.isArray(voce.eventiAllenamento) ? voce.eventiAllenamento : []
+  };
+}
+
+function unisciPasti(salvati) {
+  const risultato = {};
+  for (const [data, voce] of Object.entries(salvati || {})) {
+    if (isOggetto(voce)) risultato[data] = normalizzaGiorno(voce);
+  }
+  return risultato;
+}
+
 // Fonde i dati salvati sopra la struttura di default, così una modifica futura
 // a dati-default.js non lascia campi undefined che farebbero crashare la UI.
 function unisciConDefault(datiDefault, salvati) {
@@ -54,7 +88,7 @@ function unisciConDefault(datiDefault, salvati) {
     ...salvati,
     mesociclo: { ...base.mesociclo, ...salvati.mesociclo },
     esercizi: unisciEsercizi(datiDefault, salvati.esercizi),
-    pasti: salvati.pasti
+    pasti: unisciPasti(salvati.pasti)
   };
 }
 

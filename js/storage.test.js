@@ -100,3 +100,53 @@ test('loadData con JSON valido ma di forma sbagliata lancia l\'errore di dati co
   backend.setItem('fitnessTrackerData', JSON.stringify({ a: 1 }));
   assert.throws(() => loadData(datiDefault, backend), /corrotti/);
 });
+
+test('loadData migra un giorno nel vecchio formato (checklist) al nuovo formato (log alimenti)', () => {
+  const backend = fakeBackend();
+  backend.setItem(
+    'fitnessTrackerData',
+    JSON.stringify({
+      mesociclo: { dataInizio: '2026-09-08' },
+      esercizi: {},
+      pasti: {
+        '2026-09-01': { tipoGiorno: 'sera', fatti: ['pasto1', 'pasto2'], extra: [{ testo: 'nota vecchia' }], peso: 80.4 }
+      }
+    })
+  );
+
+  const data = loadData(datiDefault, backend);
+  const giorno = data.pasti['2026-09-01'];
+
+  assert.equal(giorno.peso, 80.4);
+  assert.equal(giorno.pastiLoggati, 0);
+  assert.deepEqual(giorno.alimenti, []);
+  assert.deepEqual(giorno.eventiAllenamento, []);
+  assert.ok(!('tipoGiorno' in giorno));
+  assert.ok(!('fatti' in giorno));
+});
+
+test('loadData lascia intatto un giorno già nel formato nuovo', () => {
+  const backend = fakeBackend();
+  backend.setItem(
+    'fitnessTrackerData',
+    JSON.stringify({
+      mesociclo: { dataInizio: '2026-09-08' },
+      esercizi: {},
+      pasti: {
+        '2026-09-03': {
+          peso: 78.3,
+          pastiLoggati: 2,
+          alimenti: [{ ora: '12:30', alimentoId: 'pollo', grammiCrudi: 200, modalitaInserita: 'crudo' }],
+          eventiAllenamento: [{ ora: '18:00', tipo: 'post-workout-iniziato' }]
+        }
+      }
+    })
+  );
+
+  const data = loadData(datiDefault, backend);
+  const giorno = data.pasti['2026-09-03'];
+
+  assert.equal(giorno.pastiLoggati, 2);
+  assert.equal(giorno.alimenti.length, 1);
+  assert.equal(giorno.eventiAllenamento.length, 1);
+});

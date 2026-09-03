@@ -24,6 +24,12 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDe
   const inputsReps = Array.from({ length: serieProgrammate }, (_, i) => `
     <input type="number" class="rep-input" data-serie="${i}" placeholder="Serie ${i + 1} (target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax})" min="0">
   `).join('');
+  // Il campo peso per serie esiste solo per esercizi con carico esterno (conPeso).
+  const inputsPeso = conPeso
+    ? Array.from({ length: serieProgrammate }, (_, i) => `
+    <input type="number" class="peso-input" data-serie="${i}" placeholder="Peso serie ${i + 1} (kg)" min="0" step="0.5" value="${esercizioStato.ultimoPeso}">
+  `).join('')
+    : '';
 
   const riepilogo = conPeso
     ? `ultimo peso: ${esercizioStato.ultimoPeso}kg${isDeload ? ' (scarico: carico invariato)' : ''}, target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax} ${unita}, ${serieProgrammate} serie`
@@ -31,12 +37,32 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDe
 
   li.innerHTML = `
     <strong>${esercizioConfig.nome}</strong> — ${riepilogo}
-    <div>${inputsReps}</div>
+    <div class="pesi">${inputsPeso}</div>
+    <div class="reps">${inputsReps}</div>
     <input type="number" class="rpe-input" placeholder="RPE (1-10)" min="1" max="10">
     <input type="text" class="nota-input" placeholder="Nota (facoltativa)">
     <button type="button" class="btn-salva">Salva sessione</button>
     <div class="esito"></div>
   `;
+
+  // Il peso della prima serie si copia sulle altre finché non vengono modificate
+  // a mano (drop set): si parte tutte uguali, si corregge solo quello che cambia.
+  if (conPeso) {
+    const inputsPesoEl = Array.from(li.querySelectorAll('.peso-input'));
+    inputsPesoEl.slice(1).forEach((input) => {
+      input.addEventListener('input', () => {
+        input.dataset.modificato = 'true';
+      });
+    });
+    if (inputsPesoEl.length > 1) {
+      inputsPesoEl[0].addEventListener('input', () => {
+        const valore = inputsPesoEl[0].value;
+        inputsPesoEl.slice(1).forEach((input) => {
+          if (!input.dataset.modificato) input.value = valore;
+        });
+      });
+    }
+  }
 
   const btnSalva = li.querySelector('.btn-salva');
   // Protezione dal doppio tap su mobile: due click ravvicinati inserirebbero
@@ -50,6 +76,11 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDe
       li.querySelector('.esito').textContent = 'Inserisci le reps per tutte le serie prima di salvare.';
       return;
     }
+    const pesi = conPeso ? Array.from(li.querySelectorAll('.peso-input')).map((inp) => Number(inp.value) || 0) : [];
+    if (conPeso && pesi.some((p) => p === 0)) {
+      li.querySelector('.esito').textContent = 'Inserisci il peso per tutte le serie prima di salvare.';
+      return;
+    }
     const rpe = Number(li.querySelector('.rpe-input').value) || null;
     const nota = li.querySelector('.nota-input').value.trim();
 
@@ -58,23 +89,33 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDe
       // Esercizio senza carico: si registra solo la prestazione, nessun peso da aggiornare.
       esercizioStato.storico.push({ data: oggiISO(), peso: null, reps, rpe, nota });
       messaggio = 'Sessione salvata (esercizio a corpo libero, nessun carico da aggiornare).';
-    } else if (isDeload) {
-      // Settimana di scarico: la sessione si registra, ma il carico resta invariato
-      // e i fallimenti consecutivi non si toccano (altrimenti lo scarico non scarica).
-      esercizioStato.storico.push({ data: oggiISO(), peso: esercizioStato.ultimoPeso, reps, rpe, nota });
-      messaggio = `Sessione di scarico salvata, peso invariato (${esercizioStato.ultimoPeso}kg).`;
     } else {
-      const risultato = calcolaProgressione(esercizioStato, { reps });
-      esercizioStato.storico.push({ data: oggiISO(), peso: esercizioStato.ultimoPeso, reps, rpe, nota });
-      esercizioStato.ultimoPeso = risultato.nuovoPeso;
-      esercizioStato.fallimentiConsecutivi = risultato.nuoviFallimentiConsecutivi;
+      // Il peso della prima serie diventa la nuova base (es. si riparte più
+      // leggeri dopo una pausa) — la progressione parte sempre da lì, non dal
+      // vecchio valore memorizzato se l'utente lo ha corretto.
+      esercizioStato.ultimoPeso = pesi[0];
 
-      const messaggi = {
-        aumenta: `Sessione salvata. La prossima volta: +peso → ${risultato.nuovoPeso}kg.`,
-        diminuisci: `Sessione salvata. La prossima volta: -peso → ${risultato.nuovoPeso}kg.`,
-        invariato: `Sessione salvata. La prossima volta: stesso peso (${risultato.nuovoPeso}kg).`
-      };
-      messaggio = messaggi[risultato.azione];
+      if (isDeload) {
+        // Settimana di scarico: la sessione si registra, ma il carico resta
+        // invariato (quello appena impostato) e i fallimenti non si toccano.
+        esercizioStato.storico.push({ data: oggiISO(), peso: pesi[0], pesiSerie: pesi, reps, rpe, nota });
+        messaggio = `Sessione di scarico salvata, peso invariato (${pesi[0]}kg).`;
+      } else {
+        // La doppia progressione valuta solo la prima serie (il "vero" carico di
+        // lavoro): le serie successive possono essere un drop set a peso ridotto
+        // e non devono essere lette come "hai polverizzato il target".
+        const risultato = calcolaProgressione(esercizioStato, { reps: [reps[0]] });
+        esercizioStato.storico.push({ data: oggiISO(), peso: pesi[0], pesiSerie: pesi, reps, rpe, nota });
+        esercizioStato.ultimoPeso = risultato.nuovoPeso;
+        esercizioStato.fallimentiConsecutivi = risultato.nuoviFallimentiConsecutivi;
+
+        const messaggi = {
+          aumenta: `Sessione salvata. La prossima volta: +peso → ${risultato.nuovoPeso}kg.`,
+          diminuisci: `Sessione salvata. La prossima volta: -peso → ${risultato.nuovoPeso}kg.`,
+          invariato: `Sessione salvata. La prossima volta: stesso peso (${risultato.nuovoPeso}kg).`
+        };
+        messaggio = messaggi[risultato.azione];
+      }
     }
 
     giaSalvato = true;

@@ -43,25 +43,7 @@ export const datiDefault = {
     extraB: { nome: 'Extra B — Spalle/Core', esercizi: [
       { id: 'alzatelaterali', serie: 3 }, { id: 'shrug', serie: 3 }, { id: 'calfraise', serie: 3 }
     ] }
-  },
-  pasti: {
-    sera: [
-      { id: 'pasto1', nome: 'Pasto 1 (06:00)', desc: '2 uova intere + 250g albume + 35g fiocchi d\'avena' },
-      { id: 'pasto2', nome: 'Pasto 2 (11:00)', desc: '260g pollo crudo + 60g riso crudo + 15g olio EVO' },
-      { id: 'pasto3', nome: 'Pasto 3 pre-workout (15:30)', desc: '165g pollo crudo + 42g pasta cruda + 10g olio EVO' },
-      { id: 'pasto4', nome: 'Pasto 4 post-workout (19:00)', desc: '273g carne rossa magra cruda + 61g couscous crudo + 8g olio EVO' }
-    ],
-    riposo: [
-      { id: 'pasto1', nome: 'Pasto 1 (06:00)', desc: '2 uova intere + 250g albume + 35g fiocchi d\'avena' },
-      { id: 'pasto2', nome: 'Pasto 2 (11:00)', desc: '260g pollo crudo + 60g riso crudo + 15g olio EVO' },
-      { id: 'pasto3', nome: 'Pasto 3 (15:30)', desc: '165g pollo crudo + 42g pasta cruda + 10g olio EVO' },
-      { id: 'pasto4', nome: 'Pasto 4 (19:00)', desc: '273g carne rossa magra cruda + 61g couscous crudo + 8g olio EVO' }
-    ],
-    mattina: [
-      { id: 'pasto1', nome: 'Pasto 1 post-workout (subito dopo l\'allenamento)', desc: '50g crema di riso + 60g whey — zero cottura' },
-      { id: 'pasto2', nome: 'Pasto 2 (11:00)', desc: '260g pollo crudo + 60g riso crudo + 15g olio EVO' },
-      { id: 'pasto3', nome: 'Pasto 3 (15:30)', desc: '165g pollo crudo + 42g pasta cruda + 10g olio EVO' },
-      { id: 'pasto4', nome: 'Pasto 4 (19:00, cena)', desc: '273g carne rossa magra cruda + 61g couscous crudo + 20g olio EVO (8g + 12g compensazione grassi)' }
-    ]
   }
+  // La vecchia checklist a 4 pasti fissi (campo `pasti`) è stata sostituita dal
+  // motore pasti adattivo — vedi js/database-alimenti.js e js/budget.js.
 };
