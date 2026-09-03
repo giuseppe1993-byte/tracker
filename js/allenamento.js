@@ -113,9 +113,18 @@ export function renderAllenamento(container, data, persist) {
   intestazione.textContent = `Mesociclo 1 — Settimana ${settimana} (${fase})`;
   container.appendChild(intestazione);
 
-  sessioniDisponibili(fase).forEach((sessione) => {
-    renderSessione(container, sessione.nome, sessione, data, persist, isDeload);
-  });
+  const sessioni = sessioniDisponibili(fase);
+  if (sessioni.length === 0) {
+    // Oltre la settimana 5 (mesociclo2) non ci sono ancora sessioni definite:
+    // meglio dirlo che mostrare una sezione vuota senza spiegazione.
+    const avviso = document.createElement('p');
+    avviso.textContent = 'Mesociclo 1 completato — Mesociclo 2 da definire. Nel frattempo puoi usare le sessioni extra qui sotto.';
+    container.appendChild(avviso);
+  } else {
+    sessioni.forEach((sessione) => {
+      renderSessione(container, sessione.nome, sessione, data, persist, isDeload);
+    });
+  }
 
   const titoloExtra = document.createElement('h2');
   titoloExtra.textContent = 'Sessioni extra leggere (facoltative)';
