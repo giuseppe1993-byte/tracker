@@ -17,7 +17,7 @@ function tracciaProgressione(esercizioConfig) {
   return esercizioConfig.tracciaProgressione !== false;
 }
 
-function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, onSalva) {
+function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDeload, onSalva) {
   const conPeso = tracciaProgressione(esercizioConfig);
   const unita = conPeso ? 'reps' : 'sec/reps';
   const li = document.createElement('li');
@@ -26,7 +26,7 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, onSa
   `).join('');
 
   const riepilogo = conPeso
-    ? `ultimo peso: ${esercizioStato.ultimoPeso}kg, target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax} ${unita}, ${serieProgrammate} serie`
+    ? `ultimo peso: ${esercizioStato.ultimoPeso}kg${isDeload ? ' (scarico: carico invariato)' : ''}, target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax} ${unita}, ${serieProgrammate} serie`
     : `a corpo libero, target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax} ${unita}, ${serieProgrammate} serie`;
 
   li.innerHTML = `
@@ -52,6 +52,11 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, onSa
       // Esercizio senza carico: si registra solo la prestazione, nessun peso da aggiornare.
       esercizioStato.storico.push({ data: oggiISO(), peso: null, reps, rpe, nota });
       messaggio = 'Sessione salvata (esercizio a corpo libero, nessun carico da aggiornare).';
+    } else if (isDeload) {
+      // Settimana di scarico: la sessione si registra, ma il carico resta invariato
+      // e i fallimenti consecutivi non si toccano (altrimenti lo scarico non scarica).
+      esercizioStato.storico.push({ data: oggiISO(), peso: esercizioStato.ultimoPeso, reps, rpe, nota });
+      messaggio = `Sessione di scarico salvata, peso invariato (${esercizioStato.ultimoPeso}kg).`;
     } else {
       const risultato = calcolaProgressione(esercizioStato, { reps });
       esercizioStato.storico.push({ data: oggiISO(), peso: esercizioStato.ultimoPeso, reps, rpe, nota });
@@ -81,7 +86,7 @@ function renderSessione(container, titolo, sessione, data, persist, riduciSerie)
     const esercizioConfig = datiDefault.esercizi[id];
     const esercizioStato = data.esercizi[id];
     const serieEffettive = riduciSerie ? applicaDeload(serie) : serie;
-    lista.appendChild(renderEsercizio(esercizioConfig, esercizioStato, serieEffettive, () => persist()));
+    lista.appendChild(renderEsercizio(esercizioConfig, esercizioStato, serieEffettive, riduciSerie, () => persist()));
   });
   div.appendChild(lista);
   container.appendChild(div);
