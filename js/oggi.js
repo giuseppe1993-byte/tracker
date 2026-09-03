@@ -25,7 +25,11 @@ export function renderOggi(container, data, persist) {
       <button id="btn-extra" type="button">+ Aggiungi</button>
     </div>
     <ul id="lista-extra"></ul>
-    <label>Peso di oggi (kg): <input id="peso-oggi" type="number" step="0.1"></label>
+    <div>
+      <label>Peso di oggi (kg): <input id="peso-oggi" type="number" step="0.1" inputmode="decimal"></label>
+      <button id="btn-peso" type="button">Salva peso</button>
+      <span id="esito-peso"></span>
+    </div>
   `;
 
   container.querySelector('#tipo-giorno').value = giorno.tipoGiorno;
@@ -106,10 +110,18 @@ export function renderOggi(container, data, persist) {
     renderExtra();
   });
 
-  container.querySelector('#peso-oggi').addEventListener('change', (e) => {
-    giorno.peso = e.target.value ? Number(e.target.value) : null;
+  function salvaPeso() {
+    const input = container.querySelector('#peso-oggi');
+    giorno.peso = input.value ? Number(input.value) : null;
     persist();
-  });
+    const esito = container.querySelector('#esito-peso');
+    esito.textContent = giorno.peso != null ? `Salvato: ${giorno.peso}kg` : '';
+  }
+
+  // Salva anche perdendo il focus (comodo su desktop), ma il pulsante è la
+  // via principale — su mobile "change" da solo non dava nessuna conferma visibile.
+  container.querySelector('#peso-oggi').addEventListener('change', salvaPeso);
+  container.querySelector('#btn-peso').addEventListener('click', salvaPeso);
 
   renderPasti();
   renderExtra();
