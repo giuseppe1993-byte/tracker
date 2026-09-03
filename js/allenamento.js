@@ -38,7 +38,13 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDe
     <div class="esito"></div>
   `;
 
-  li.querySelector('.btn-salva').addEventListener('click', () => {
+  const btnSalva = li.querySelector('.btn-salva');
+  // Protezione dal doppio tap su mobile: due click ravvicinati inserirebbero
+  // due voci nello storico e applicherebbero la progressione due volte.
+  let giaSalvato = false;
+
+  btnSalva.addEventListener('click', () => {
+    if (giaSalvato) return;
     const reps = Array.from(li.querySelectorAll('.rep-input')).map((inp) => Number(inp.value) || 0);
     if (reps.some((r) => r === 0)) {
       li.querySelector('.esito').textContent = 'Inserisci le reps per tutte le serie prima di salvare.';
@@ -70,6 +76,11 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDe
       };
       messaggio = messaggi[risultato.azione];
     }
+
+    giaSalvato = true;
+    btnSalva.disabled = true;
+    btnSalva.textContent = 'Sessione salvata';
+    li.classList.add('salvato');
 
     li.querySelector('.esito').textContent = messaggio;
     onSalva();
