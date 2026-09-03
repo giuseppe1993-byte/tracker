@@ -1,11 +1,22 @@
 import { loadData, saveData } from './storage.js';
 import { datiDefault } from './dati-default.js';
+import { renderOggi } from './oggi.js';
+import { renderAllenamento } from './allenamento.js';
+import { renderStorico } from './storico.js';
 
 const state = { data: null };
 
 function persist() {
   saveData(state.data);
 }
+
+// Una funzione di render per ogni tab: ogni render ripulisce il proprio
+// container, quindi richiamarla è idempotente e sicuro.
+const renderPerTab = {
+  oggi: () => renderOggi(document.getElementById('tab-oggi'), state.data, persist),
+  allenamento: () => renderAllenamento(document.getElementById('tab-allenamento'), state.data, persist),
+  storico: () => renderStorico(document.getElementById('tab-storico'), state.data)
+};
 
 function setupTabs() {
   document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -14,17 +25,16 @@ function setupTabs() {
       document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+      // Ridisegna il tab appena attivato, così mostra sempre dati aggiornati
+      // (es. un allenamento appena salvato deve comparire subito nello Storico).
+      const render = renderPerTab[btn.dataset.tab];
+      if (render) render();
     });
   });
 }
 
-async function renderAll() {
-  const { renderOggi } = await import('./oggi.js');
-  const { renderAllenamento } = await import('./allenamento.js');
-  const { renderStorico } = await import('./storico.js');
-  renderOggi(document.getElementById('tab-oggi'), state.data, persist);
-  renderAllenamento(document.getElementById('tab-allenamento'), state.data, persist);
-  renderStorico(document.getElementById('tab-storico'), state.data);
+function renderAll() {
+  Object.values(renderPerTab).forEach((render) => render());
 }
 
 function init() {
