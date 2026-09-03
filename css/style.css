@@ -73,3 +73,11 @@ button {
   color: #b91c1c;
   padding: 1rem;
 }
+
+#errore-globale {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fee2e2;
+  border-bottom: 2px solid #b91c1c;
+}

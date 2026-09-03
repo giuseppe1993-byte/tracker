@@ -6,8 +6,35 @@ import { renderStorico } from './storico.js';
 
 const state = { data: null };
 
+function mostraErroreGlobale(messaggio) {
+  let box = document.getElementById('errore-globale');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'errore-globale';
+    box.className = 'errore';
+    document.body.insertBefore(box, document.body.firstChild);
+  }
+  box.textContent = messaggio;
+  box.hidden = false;
+}
+
+function nascondiErroreGlobale() {
+  const box = document.getElementById('errore-globale');
+  if (box) {
+    box.textContent = '';
+    box.hidden = true;
+  }
+}
+
 function persist() {
-  saveData(state.data);
+  // localStorage pieno o non disponibile (es. modalità privata): il salvataggio
+  // può lanciare dentro un click handler. Va mostrato, non ingoiato in silenzio.
+  try {
+    saveData(state.data);
+    nascondiErroreGlobale();
+  } catch (e) {
+    mostraErroreGlobale(`Errore: impossibile salvare i dati (${e.message}). Le modifiche di questa sessione potrebbero andare perse.`);
+  }
 }
 
 // Una funzione di render per ogni tab: ogni render ripulisce il proprio
@@ -46,7 +73,7 @@ function init() {
   }
   if (!state.data.mesociclo.dataInizio) {
     state.data.mesociclo.dataInizio = new Date().toISOString().slice(0, 10);
-    saveData(state.data);
+    persist();
   }
   setupTabs();
   renderAll();
