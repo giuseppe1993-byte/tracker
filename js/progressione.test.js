@@ -33,6 +33,29 @@ test('una serie sotto il minimo, secondo fallimento consecutivo: peso diminuisce
   assert.equal(r.nuoviFallimentiConsecutivi, 0);
 });
 
+test('manubri, secondo fallimento consecutivo: peso diminuisce di 1.5kg', () => {
+  const esercizioConUnFallimento = { ...esercizioManubri, fallimentiConsecutivi: 1 };
+  const r = calcolaProgressione(esercizioConUnFallimento, { reps: [7, 9, 9] });
+  assert.equal(r.azione, 'diminuisci');
+  assert.equal(r.nuovoPeso, 8.5);
+  assert.equal(r.nuoviFallimentiConsecutivi, 0);
+});
+
+test('la diminuzione non scende mai sotto lo zero', () => {
+  const manubriLeggeri = { rangeMin: 12, rangeMax: 15, tipo: 'manubri', ultimoPeso: 1, fallimentiConsecutivi: 1 };
+  const r = calcolaProgressione(manubriLeggeri, { reps: [10, 10, 10] });
+  assert.equal(r.azione, 'diminuisci');
+  assert.equal(r.nuovoPeso, 0);
+  assert.equal(r.nuoviFallimentiConsecutivi, 0);
+});
+
+test('la diminuzione si ferma a zero anche partendo da zero', () => {
+  const aCorpoLibero = { rangeMin: 12, rangeMax: 15, tipo: 'manubri', ultimoPeso: 0, fallimentiConsecutivi: 1 };
+  const r = calcolaProgressione(aCorpoLibero, { reps: [8, 8, 8] });
+  assert.equal(r.azione, 'diminuisci');
+  assert.equal(r.nuovoPeso, 0);
+});
+
 test('nel mezzo del range (non tutte al massimo, nessuna sotto il minimo): invariato, contatore azzerato', () => {
   const esercizioConUnFallimento = { ...esercizioBilanciere, fallimentiConsecutivi: 1 };
   const r = calcolaProgressione(esercizioConUnFallimento, { reps: [10, 9, 8] });

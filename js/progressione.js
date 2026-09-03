@@ -13,7 +13,8 @@ export function calcolaProgressione(esercizio, sessione) {
   if (almenoUnaSottoMinimo) {
     const nuoviFallimenti = fallimentiConsecutivi + 1;
     if (nuoviFallimenti >= 2) {
-      return { nuovoPeso: ultimoPeso - incremento, nuoviFallimentiConsecutivi: 0, azione: 'diminuisci' };
+      // Il carico non può scendere sotto lo zero (es. manubri leggeri da 4kg).
+      return { nuovoPeso: Math.max(0, ultimoPeso - incremento), nuoviFallimentiConsecutivi: 0, azione: 'diminuisci' };
     }
     return { nuovoPeso: ultimoPeso, nuoviFallimentiConsecutivi: nuoviFallimenti, azione: 'invariato' };
   }
