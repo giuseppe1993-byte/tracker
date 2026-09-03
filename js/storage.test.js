@@ -44,3 +44,59 @@ test('loadData con JSON corrotto lancia un errore leggibile', () => {
 test('loadData senza storage disponibile lancia un errore leggibile', () => {
   assert.throws(() => loadData(datiDefault, null), /non disponibile/);
 });
+
+test('loadData aggiunge i default per un esercizio nuovo e conserva quelli esistenti', () => {
+  const backend = fakeBackend();
+  // Simula un'installazione vecchia: solo due esercizi salvati, con stato utente.
+  backend.setItem(
+    'fitnessTrackerData',
+    JSON.stringify({
+      mesociclo: { dataInizio: '2026-09-08' },
+      esercizi: {
+        squat: { nome: 'Squat (bilanciere)', rangeMin: 6, rangeMax: 10, tipo: 'bilanciere', ultimoPeso: 62.5, fallimentiConsecutivi: 1, storico: [{ data: '2026-09-10', peso: 60, reps: [8, 8, 7], rpe: 8, nota: 'ok' }] },
+        panca: { nome: 'Panca piana (bilanciere)', rangeMin: 6, rangeMax: 10, tipo: 'bilanciere', ultimoPeso: 45, fallimentiConsecutivi: 0, storico: [] }
+      },
+      pasti: { '2026-09-10': { tipoGiorno: 'sera', fatti: ['pasto1'], extra: [], peso: 80 } }
+    })
+  );
+
+  const data = loadData(datiDefault, backend);
+
+  // Stato utente preservato sugli esercizi già presenti.
+  assert.equal(data.esercizi.squat.ultimoPeso, 62.5);
+  assert.equal(data.esercizi.squat.fallimentiConsecutivi, 1);
+  assert.equal(data.esercizi.squat.storico.length, 1);
+  assert.equal(data.esercizi.panca.ultimoPeso, 45);
+
+  // Esercizi presenti in dati-default ma assenti dai dati salvati: valori di default.
+  for (const id of Object.keys(datiDefault.esercizi)) {
+    assert.ok(data.esercizi[id], `esercizio mancante dopo il merge: ${id}`);
+  }
+  assert.equal(data.esercizi.plank.ultimoPeso, datiDefault.esercizi.plank.ultimoPeso);
+  assert.deepEqual(data.esercizi.plank.storico, []);
+  assert.equal(data.esercizi.plank.tracciaProgressione, false);
+
+  // La configurazione arriva sempre da dati-default (niente drift di schema).
+  assert.equal(data.esercizi.squat.tracciaProgressione, true);
+  assert.equal(data.esercizi.squat.rangeMax, datiDefault.esercizi.squat.rangeMax);
+
+  // Il resto dei dati resta intatto.
+  assert.equal(data.mesociclo.dataInizio, '2026-09-08');
+  assert.equal(data.pasti['2026-09-10'].peso, 80);
+});
+
+test('loadData con una chiave di primo livello mancante lancia l\'errore di dati corrotti', () => {
+  for (const chiaveMancante of ['mesociclo', 'esercizi', 'pasti']) {
+    const backend = fakeBackend();
+    const completo = { mesociclo: { dataInizio: null }, esercizi: {}, pasti: {} };
+    delete completo[chiaveMancante];
+    backend.setItem('fitnessTrackerData', JSON.stringify(completo));
+    assert.throws(() => loadData(datiDefault, backend), /corrotti/, `chiave mancante: ${chiaveMancante}`);
+  }
+});
+
+test('loadData con JSON valido ma di forma sbagliata lancia l\'errore di dati corrotti', () => {
+  const backend = fakeBackend();
+  backend.setItem('fitnessTrackerData', JSON.stringify({ a: 1 }));
+  assert.throws(() => loadData(datiDefault, backend), /corrotti/);
+});
