@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fitness Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <h1>Fitness Tracker</h1>
+  </header>
+  <nav id="tab-nav">
+    <button data-tab="oggi" class="tab-btn active">Oggi</button>
+    <button data-tab="allenamento" class="tab-btn">Allenamento</button>
+    <button data-tab="storico" class="tab-btn">Storico</button>
+  </nav>
+  <main>
+    <section id="tab-oggi" class="tab-panel active"></section>
+    <section id="tab-allenamento" class="tab-panel"></section>
+    <section id="tab-storico" class="tab-panel"></section>
+  </main>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
