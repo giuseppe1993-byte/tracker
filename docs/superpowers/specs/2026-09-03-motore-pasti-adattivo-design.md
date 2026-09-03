@@ -62,6 +62,7 @@ Tutte le grammature suggerite dal motore di raccomandazione si arrotondano **per
   "pasti": {
     "2026-09-03": {
       "peso": 78.3,
+      "pastiLoggati": 1,
       "alimenti": [
         { "ora": "12:30", "alimentoId": "pollo", "grammiCrudi": 200, "modalitaInserita": "crudo" },
         { "ora": "12:30", "alimentoId": "riso", "grammiCrudi": 90, "modalitaInserita": "crudo" }
@@ -75,6 +76,7 @@ Tutte le grammature suggerite dal motore di raccomandazione si arrotondano **per
 ```
 
 - `alimenti[]`: log libero di tutto ciò che è stato mangiato, in ordine cronologico — non più raggruppato in "pasto1/2/3/4" fissi.
+- `pastiLoggati`: contatore, sale di 1 ogni volta che si conferma un'aggiunta al log (da suggerimento o manuale) — usato per stimare quanti pasti restano oggi (vedi Motore di raccomandazione).
 - `eventiAllenamento[]`: registra quando l'utente ha premuto "Mi alleno ora / Mi sono allenato" — usato per capire se il prossimo consiglio deve essere post-workout.
 - Nessun campo `tipoGiorno`/`fatti` — rimossi, sostituiti da questo modello.
 - `extra` (note libere fuori piano) resta come funzione separata e viene mantenuto: si può comunque aggiungere una nota testuale libera indipendente dal log strutturato, per cose che non rientrano nel database chiuso (es. "sgarro pizza").
@@ -107,28 +109,42 @@ export function calcolaRimasto(target, consumato) {
 
 Target fisso giornaliero (dal piano): `{ kcal: 2145, p: 214, f: 72, c: 161 }`.
 
-## Motore di raccomandazione (semplice, a regole — non un ottimizzatore)
+## Motore di raccomandazione (a regole, con numeri presi dal piano già validato — non inventati ora)
 
-**Scope deliberato**: non calcola la porzione "matematicamente perfetta" per il resto della giornata (richiederebbe sapere quanti pasti mancano, informazione che non chiediamo esplicitamente). Calcola invece un **singolo pasto ragionevole** che usa una parte del budget rimasto, coerente con le proteine spalmate uniformemente e i carbo "a domanda".
+**Principio**: l'app deve **sempre** proporre un pasto concreto (alimento + grammi), non solo mostrare il budget e aspettare che l'utente capisca da solo. Il log libero resta disponibile come alternativa, ma il consiglio è la funzione primaria, non opzionale.
+
+**Da dove vengono i numeri**: non un'euristica nuova — sono gli stessi rapporti già usati (e validati con l'utente) nel piano fisso originale, resi dinamici:
+- **Proteine**: spalmate in dose costante su ogni pasto — nel piano originale ~50-65g a pasto su 4 pasti/2145kcal. Si generalizza come: `proteine rimaste ÷ pasti rimanenti stimati oggi`.
+- **Carboidrati**: nel piano originale il pasto post-workout (Pasto 4) aveva 48g di carbo contro i 31g degli altri pasti — un rapporto reale di **1,5:1**, non un numero a caso. Si applica lo stesso peso: il pasto immediatamente dopo l'allenamento riceve una quota di carbo 1,5 volte maggiore rispetto a un pasto normale, il resto del budget si spalma sugli altri pasti stimati.
+- **Grassi**: quasi zero nel pasto post-workout (come già stabilito), il resto si spalma sui pasti non a ridosso dell'allenamento.
+
+**Pasti rimanenti stimati**: si assume una routine di **4 pasti/giorno** (base già validata con l'utente per il target calorico), meno quelli già loggati oggi (`data.pasti[oggi].pastiLoggati`, un contatore che sale di 1 ogni volta che si preme "Aggiungi al log", sia da suggerimento che da log libero). Non si chiede mai esplicitamente all'utente "quanti pasti farai oggi".
 
 ```javascript
+// Rapporto reale derivato dal piano originale: Pasto post-workout 48g carbo
+// vs Pasto normale 31g carbo, su 4 pasti — non un valore inventato ora.
+const PESO_CARBO_POST_WORKOUT = 1.5;
+const PESO_CARBO_NORMALE = 1;
+const PASTI_AL_GIORNO = 4;
+
 // combo = { proteina: alimentoId, carbo: alimentoId | null, grassoZero: bool }
-export function suggerisciPasto(rimasto, combo, databaseAlimenti, quotaKcal = 0.35) {
-  const kcalTarget = Math.max(0, rimasto.kcal * quotaKcal);
+export function suggerisciPasto({ rimasto, pastiLoggatiOggi, isPostWorkout, combo, databaseAlimenti }) {
+  const pastiRimanenti = Math.max(1, PASTI_AL_GIORNO - pastiLoggatiOggi);
+
+  // Proteine: dose costante, spalmata sui pasti rimanenti stimati.
+  const pTarget = Math.max(0, rimasto.p / pastiRimanenti);
+
+  // Carbo: quota pesata (1,5x se post-workout) sul budget rimasto, non semplice divisione.
+  const pesoQuestoPasto = isPostWorkout ? PESO_CARBO_POST_WORKOUT : PESO_CARBO_NORMALE;
+  const pesoTotaleStimato = isPostWorkout
+    ? PESO_CARBO_POST_WORKOUT + PESO_CARBO_NORMALE * (pastiRimanenti - 1)
+    : PESO_CARBO_NORMALE * pastiRimanenti;
+  const cTarget = Math.max(0, rimasto.c * (pesoQuestoPasto / Math.max(1, pesoTotaleStimato)));
+
   const proteina = databaseAlimenti[combo.proteina];
   const carbo = combo.carbo ? databaseAlimenti[combo.carbo] : null;
-
-  // Quota di proteine e carbo per questo pasto: stessa frazione `quotaKcal` (default 35%)
-  // applicata separatamente al budget proteine e al budget carbo rimasti — non una
-  // scomposizione calorica precisa, solo "prendi una fetta ragionevole di ciascuno".
-  const pTarget = Math.max(0, rimasto.p * quotaKcal);
   const grammiProteina = proteina.p > 0 ? (pTarget / proteina.p) * 100 : 0;
-
-  let grammiCarbo = 0;
-  if (carbo) {
-    const cTarget = Math.max(0, rimasto.c * quotaKcal);
-    grammiCarbo = carbo.c > 0 ? (cTarget / carbo.c) * 100 : 0;
-  }
+  const grammiCarbo = carbo && carbo.c > 0 ? (cTarget / carbo.c) * 100 : 0;
 
   const arrotonda = (g) => Math.floor(g / 5) * 5;
   return {
@@ -156,24 +172,24 @@ export const combosPasto = {
 };
 ```
 
-La UI mostra il suggerimento (alimento + grammi arrotondati) con un pulsante "Aggiungi al log" che lo registra così com'è, oppure l'utente lo ignora e logga a mano quello che ha mangiato davvero — il suggerimento non è mai vincolante, è un aiuto.
+La UI mostra il suggerimento (alimento + grammi arrotondati) **sempre**, con un pulsante "Aggiungi al log" che lo registra così com'è, "Cambia proposta" per ruotare alla combo successiva, e la possibilità di modificare i grammi proposti prima di confermare. Il log libero manuale resta disponibile in aggiunta, non al posto del consiglio.
 
 ## Trigger allenamento
 
 - Pulsante in Allenamento (o in Oggi): **"Mi sto allenando ora"** e **"Ho finito di allenarmi"**.
-- Alla pressione di "Ho finito di allenarmi": si registra un evento in `eventiAllenamento`, e il prossimo suggerimento pasto (`suggerisciPasto`) usa automaticamente `combosPasto.postWorkout` invece di `combosPasto.normale`, finché non viene loggato almeno un pasto dopo quell'evento (poi torna a `normale` per i pasti successivi della giornata).
-- **Allenamento a digiuno** (nessun alimento loggato prima dell'evento allenamento): gestito naturalmente — `consumato` è ancora zero, `rimasto` è l'intero target, il primo suggerimento post-workout userà l'intero budget disponibile per quella quota. Nessuna logica speciale aggiuntiva necessaria.
-- **Giorno senza allenamento**: nessun evento registrato → tutti i suggerimenti usano `combosPasto.normale`, distribuzione uniforme per l'intera giornata (comportamento di default, coerente col piano originale nei giorni di riposo).
+- Alla pressione di "Ho finito di allenarmi": si registra un evento in `eventiAllenamento`, e il prossimo suggerimento pasto (`suggerisciPasto` con `isPostWorkout: true`) usa `combosPasto.postWorkout` con il peso carbo 1,5x, finché non viene loggato almeno un pasto dopo quell'evento (poi torna a `normale` per i pasti successivi della giornata).
+- **Allenamento a digiuno** (nessun alimento loggato prima dell'evento allenamento): gestito naturalmente — `consumato` è ancora zero, `rimasto` è l'intero target, `pastiLoggatiOggi` è 0 → il primo suggerimento post-workout usa l'intero budget rimanente con la quota 1,5x. Nessuna logica speciale aggiuntiva necessaria.
+- **Giorno senza allenamento**: nessun evento registrato → tutti i suggerimenti usano `combosPasto.normale` e peso carbo 1 (uniforme), stesso comportamento del piano originale nei giorni di riposo.
 
 ## Schermata Oggi — nuova struttura
 
 Sostituisce interamente la vecchia checklist a 4 pasti fissi:
 
 1. **Peso di oggi** — invariato (già corretto separatamente).
-2. **Riepilogo budget**: "Consumato oggi: X kcal / Yg P / Zg F / Wg C — Ti restano: ... " sempre visibile in cima.
-3. **Pulsanti allenamento**: "Mi sto allenando ora" / "Ho finito di allenarmi".
-4. **Suggerimento prossimo pasto**: alimento+grammi calcolati da `suggerisciPasto`, con pulsante "Aggiungi al log" (registra automaticamente) e pulsante "Cambia proposta" (ruota alla combo successiva nella lista).
-5. **Log libero**: form con select alimento (dal `databaseAlimenti`) + campo grammi + toggle crudo/cotto + pulsante "Aggiungi" — per loggare manualmente qualsiasi cosa, coerente o no col suggerimento.
+2. **Cosa mangiare adesso** (in cima, la cosa più prominente della schermata): il suggerimento di `suggerisciPasto` — alimento+grammi, con pulsante "Aggiungi al log" e "Cambia proposta" (ruota alla combo successiva). Sempre presente, mai vuoto.
+3. **Riepilogo budget**: "Consumato oggi: X kcal / Yg P / Zg F / Wg C — Ti restano: ..." — subito sotto il consiglio, per contesto.
+4. **Pulsanti allenamento**: "Mi sto allenando ora" / "Ho finito di allenarmi".
+5. **Log libero**: form con select alimento (dal `databaseAlimenti`) + campo grammi + toggle crudo/cotto + pulsante "Aggiungi" — per loggare manualmente qualsiasi cosa, coerente o no col suggerimento. Disponibile ma secondario rispetto al consiglio.
 6. **Lista alimenti loggati oggi**, con possibilità di rimuovere una voce (stesso pattern sicuro già usato per il campo "extra": `textContent`, mai `innerHTML` su testo libero).
 7. **Nota libera fuori piano** (invariata, per cose fuori dal database chiuso).
 
