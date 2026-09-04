@@ -1,34 +1,13 @@
 import { databaseAlimenti, rapportiCotturaCrudo, combosPasto, targetGiornaliero } from './database-alimenti.js';
 import { calcolaConsumato, calcolaRimasto, suggerisciPasto } from './budget.js';
-
-function oggiISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function oraAttuale() {
-  return new Date().toTimeString().slice(0, 5);
-}
-
-function isPostWorkoutOra(giorno) {
-  if (giorno.eventiAllenamento.length === 0) return false;
-  const ultimoEvento = giorno.eventiAllenamento[giorno.eventiAllenamento.length - 1];
-  if (ultimoEvento.tipo !== 'post-workout-iniziato') return false;
-  if (giorno.alimenti.length === 0) return true;
-  const ultimoAlimento = giorno.alimenti[giorno.alimenti.length - 1];
-  return ultimoEvento.ora > ultimoAlimento.ora;
-}
+import { oraAttuale, getGiornoOggi, isPostWorkoutOra } from './giorno-oggi.js';
 
 function formatoNumero(n) {
   return Math.round(n * 10) / 10;
 }
 
 export function renderOggi(container, data, persist) {
-  const chiaveOggi = oggiISO();
-  if (!data.pasti[chiaveOggi]) {
-    data.pasti[chiaveOggi] = { peso: null, pastiLoggati: 0, alimenti: [], eventiAllenamento: [] };
-  }
-  const giorno = data.pasti[chiaveOggi];
-  if (!Array.isArray(giorno.extra)) giorno.extra = [];
+  const giorno = getGiornoOggi(data);
 
   let indiceComboNormale = 0;
   let indiceComboPostWorkout = 0;
