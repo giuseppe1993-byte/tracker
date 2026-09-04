@@ -13,6 +13,7 @@ export function getGiornoOggi(data) {
   }
   const giorno = data.pasti[chiave];
   if (!Array.isArray(giorno.extra)) giorno.extra = [];
+  if (giorno.sessioneCompletata === undefined) giorno.sessioneCompletata = null;
   return giorno;
 }
 

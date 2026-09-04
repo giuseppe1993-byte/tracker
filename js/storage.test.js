@@ -137,7 +137,9 @@ test('loadData lascia intatto un giorno già nel formato nuovo', () => {
           peso: 78.3,
           pastiLoggati: 2,
           alimenti: [{ ora: '12:30', alimentoId: 'pollo', grammiCrudi: 200, modalitaInserita: 'crudo' }],
-          eventiAllenamento: [{ ora: '18:00', tipo: 'post-workout-iniziato' }]
+          eventiAllenamento: [{ ora: '18:00', tipo: 'post-workout-iniziato' }],
+          extra: [{ testo: 'couscous 150g' }],
+          sessioneCompletata: { tipo: 'Upper', nota: '' }
         }
       }
     })
@@ -149,4 +151,41 @@ test('loadData lascia intatto un giorno già nel formato nuovo', () => {
   assert.equal(giorno.pastiLoggati, 2);
   assert.equal(giorno.alimenti.length, 1);
   assert.equal(giorno.eventiAllenamento.length, 1);
+  // Regressione: `extra` e `sessioneCompletata` venivano scartati a ogni
+  // ricarica perché normalizzaGiorno non li includeva nel whitelisting.
+  assert.deepEqual(giorno.extra, [{ testo: 'couscous 150g' }]);
+  assert.deepEqual(giorno.sessioneCompletata, { tipo: 'Upper', nota: '' });
+});
+
+test('loadData preserva extra e sessioneCompletata su un round-trip salva/ricarica', () => {
+  const backend = fakeBackend();
+  const data = getDefaultData(datiDefault);
+  data.pasti['2026-09-04'] = {
+    peso: 80,
+    pastiLoggati: 1,
+    alimenti: [],
+    eventiAllenamento: [],
+    extra: [{ testo: 'nota di test' }],
+    sessioneCompletata: { tipo: 'Lower', nota: 'poco tempo' }
+  };
+  saveData(data, backend);
+  const ricaricato = loadData(datiDefault, backend);
+  assert.deepEqual(ricaricato.pasti['2026-09-04'].extra, [{ testo: 'nota di test' }]);
+  assert.deepEqual(ricaricato.pasti['2026-09-04'].sessioneCompletata, { tipo: 'Lower', nota: 'poco tempo' });
+});
+
+test('loadData con sessioneCompletata malformato la sostituisce con null', () => {
+  const backend = fakeBackend();
+  backend.setItem(
+    'fitnessTrackerData',
+    JSON.stringify({
+      mesociclo: { dataInizio: '2026-09-08' },
+      esercizi: {},
+      pasti: {
+        '2026-09-05': { peso: 80, pastiLoggati: 0, alimenti: [], eventiAllenamento: [], sessioneCompletata: 'non valido' }
+      }
+    })
+  );
+  const data = loadData(datiDefault, backend);
+  assert.equal(data.pasti['2026-09-05'].sessioneCompletata, null);
 });

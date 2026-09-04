@@ -239,18 +239,31 @@ export function renderAllenamento(container, data, persist) {
   container.appendChild(intestazione);
 
   const sessioni = sessioniDisponibili(fase);
+  const isAlternanza = isFase2 && sessioni.length > 1;
+  let suggerita = null;
+  let altre = [];
+  if (isAlternanza) {
+    // Alterna Upper/Lower in base all'ultima sessione fase2 salvata (non alla
+    // fase, che dura settimane): se ieri hai fatto Upper, oggi propone Lower.
+    const ultima = data.mesociclo.ultimaSessioneFase2;
+    suggerita = sessioni.find((s) => s.nome !== ultima) || sessioni[0];
+    altre = sessioni.filter((s) => s !== suggerita);
+  }
+
+  renderBloccoFineGiornata();
+
+  if (giorno.sessioneCompletata) {
+    renderRiepilogoCompletata();
+    return;
+  }
+
   if (sessioni.length === 0) {
     // Oltre la settimana 5 (mesociclo2) non ci sono ancora sessioni definite:
     // meglio dirlo che mostrare una sezione vuota senza spiegazione.
     const avviso = document.createElement('p');
     avviso.textContent = 'Mesociclo 1 completato — Mesociclo 2 da definire. Nel frattempo puoi usare le sessioni extra qui sotto.';
     container.appendChild(avviso);
-  } else if (isFase2 && sessioni.length > 1) {
-    // Alterna Upper/Lower in base all'ultima sessione fase2 salvata (non alla
-    // fase, che dura settimane): se ieri hai fatto Upper, oggi propone Lower.
-    const ultima = data.mesociclo.ultimaSessioneFase2;
-    const suggerita = sessioni.find((s) => s.nome !== ultima) || sessioni[0];
-    const altre = sessioni.filter((s) => s !== suggerita);
+  } else if (isAlternanza) {
     renderSessione(container, `${suggerita.nome} (consigliata oggi)`, suggerita, data, persist, isDeload, true);
     altre.forEach((sessione) => {
       renderSessione(container, `${sessione.nome} (alternativa)`, sessione, data, persist, isDeload, true);
@@ -268,4 +281,110 @@ export function renderAllenamento(container, data, persist) {
   Object.values(datiDefault.sessioniExtra).forEach((sessione) => {
     renderSessione(container, sessione.nome, sessione, data, persist, false, false);
   });
+
+  // Chiusura esplicita della giornata di allenamento: non si deduce più solo
+  // dai singoli esercizi salvati, così l'utente può dichiarare "ho finito"
+  // anche facendo solo un sottoinsieme degli esercizi proposti, e la scelta
+  // pesante/leggero (se c'è alternanza) sovrascrive quella automatica.
+  function renderBloccoFineGiornata() {
+    const blocco = document.createElement('div');
+    blocco.className = 'card';
+    container.appendChild(blocco);
+
+    function disegnaBottone() {
+      blocco.innerHTML = '<button id="btn-fine-giornata" type="button">Ho finito per oggi</button>';
+      blocco.querySelector('#btn-fine-giornata').addEventListener('click', disegnaScelta);
+    }
+
+    function confermaCompletamento(nomeScelto, nota) {
+      giorno.sessioneCompletata = { tipo: nomeScelto, nota };
+      if (isAlternanza && nomeScelto) {
+        data.mesociclo.ultimaSessioneFase2 = nomeScelto;
+      }
+      persist();
+      renderAllenamento(container, data, persist);
+    }
+
+    function disegnaScelta() {
+      if (!isAlternanza) {
+        blocco.innerHTML = `
+          <p>Confermi di aver finito l'allenamento di oggi?</p>
+          <button id="btn-conferma-fine-giornata" type="button" class="primario">Conferma</button>
+        `;
+        blocco.querySelector('#btn-conferma-fine-giornata').addEventListener('click', () => {
+          confermaCompletamento(null, '');
+        });
+        return;
+      }
+
+      const tutteLeSessioni = [suggerita, ...altre];
+      blocco.innerHTML = `
+        <p>Quale sessione hai fatto oggi?</p>
+        <div class="scelta-riga">
+          ${tutteLeSessioni.map((s) => `<button type="button" class="scelta-tipo" data-nome="${s.nome}">${s.nome}</button>`).join('')}
+        </div>
+        <div id="nota-deviazione" hidden>
+          <label for="nota-fine-giornata">Perché una sessione diversa da quella consigliata? (facoltativo)</label>
+          <input id="nota-fine-giornata" type="text" placeholder="es. poco tempo, stanchezza...">
+        </div>
+        <button id="btn-conferma-fine-giornata" type="button" class="primario" disabled>Conferma</button>
+      `;
+
+      let nomeScelto = null;
+      const bottoniScelta = Array.from(blocco.querySelectorAll('.scelta-tipo'));
+      const notaBox = blocco.querySelector('#nota-deviazione');
+      const btnConferma = blocco.querySelector('#btn-conferma-fine-giornata');
+
+      bottoniScelta.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          nomeScelto = btn.dataset.nome;
+          bottoniScelta.forEach((b) => b.classList.toggle('primario', b === btn));
+          notaBox.hidden = nomeScelto === suggerita.nome;
+          btnConferma.disabled = false;
+        });
+      });
+
+      btnConferma.addEventListener('click', () => {
+        const nota = blocco.querySelector('#nota-fine-giornata')?.value.trim() || '';
+        confermaCompletamento(nomeScelto, nota);
+      });
+    }
+
+    disegnaBottone();
+  }
+
+  function renderRiepilogoCompletata() {
+    const riepilogo = document.createElement('div');
+    riepilogo.className = 'card';
+
+    const vociCarichi = Object.entries(data.esercizi)
+      .filter(([, stato]) => stato.storico.some((s) => s.data === oggiISO()))
+      .map(([id, stato]) => {
+        const config = datiDefault.esercizi[id];
+        const ultima = stato.storico[stato.storico.length - 1];
+        const conPeso = config?.tracciaProgressione !== false;
+        const dettaglio = conPeso ? `${ultima.peso}kg` : `reps ${ultima.reps.join('/')}`;
+        return `<li>${config?.nome ?? id}: ${dettaglio}</li>`;
+      });
+
+    const nomeFatta = giorno.sessioneCompletata.tipo;
+    const nomeDomani = isAlternanza ? sessioni.find((s) => s.nome !== nomeFatta)?.nome : null;
+
+    riepilogo.innerHTML = `
+      <h3>${iconSpunta()} Allenamento di oggi completato${nomeFatta ? `: ${nomeFatta}` : ''}</h3>
+      ${giorno.sessioneCompletata.nota ? `<p class="nota">Nota: ${giorno.sessioneCompletata.nota}</p>` : ''}
+      <h3>Carichi di oggi</h3>
+      <ul>${vociCarichi.length ? vociCarichi.join('') : '<li>Nessun carico registrato oggi.</li>'}</ul>
+      ${nomeDomani ? `<p class="nota">Domani ti proporrò: ${nomeDomani}</p>` : ''}
+      <button id="btn-correggi-fine-giornata" type="button">Correggi</button>
+    `;
+
+    riepilogo.querySelector('#btn-correggi-fine-giornata').addEventListener('click', () => {
+      giorno.sessioneCompletata = null;
+      persist();
+      renderAllenamento(container, data, persist);
+    });
+
+    container.appendChild(riepilogo);
+  }
 }

@@ -9,7 +9,7 @@ test('oggiISO restituisce una data in formato YYYY-MM-DD', () => {
 test('getGiornoOggi crea un record di default se assente', () => {
   const data = { pasti: {} };
   const giorno = getGiornoOggi(data);
-  assert.deepEqual(giorno, { peso: null, pastiLoggati: 0, alimenti: [], eventiAllenamento: [], extra: [] });
+  assert.deepEqual(giorno, { peso: null, pastiLoggati: 0, alimenti: [], eventiAllenamento: [], extra: [], sessioneCompletata: null });
 });
 
 test('getGiornoOggi è idempotente: seconda chiamata restituisce lo stesso oggetto', () => {
@@ -26,6 +26,13 @@ test('getGiornoOggi aggiunge extra=[] a un record esistente che non lo ha', () =
   const data = { pasti: { [chiave]: { peso: 80, pastiLoggati: 0, alimenti: [], eventiAllenamento: [] } } };
   const giorno = getGiornoOggi(data);
   assert.deepEqual(giorno.extra, []);
+});
+
+test('getGiornoOggi aggiunge sessioneCompletata=null a un record esistente che non lo ha', () => {
+  const chiave = oggiISO();
+  const data = { pasti: { [chiave]: { peso: 80, pastiLoggati: 0, alimenti: [], eventiAllenamento: [] } } };
+  const giorno = getGiornoOggi(data);
+  assert.equal(giorno.sessioneCompletata, null);
 });
 
 test('isPostWorkoutOra: false se nessun evento allenamento', () => {

@@ -51,20 +51,31 @@ function eFormatoVecchio(voce) {
   return isOggetto(voce) && 'tipoGiorno' in voce;
 }
 
+function isSessioneCompletataValida(valore) {
+  return isOggetto(valore) && (valore.tipo === null || typeof valore.tipo === 'string') && typeof valore.nota === 'string';
+}
+
 function normalizzaGiorno(voce) {
   if (eFormatoVecchio(voce)) {
     return {
       peso: typeof voce.peso === 'number' ? voce.peso : null,
       pastiLoggati: 0,
       alimenti: [],
-      eventiAllenamento: []
+      eventiAllenamento: [],
+      extra: [],
+      sessioneCompletata: null
     };
   }
   return {
     peso: typeof voce.peso === 'number' ? voce.peso : null,
     pastiLoggati: typeof voce.pastiLoggati === 'number' ? voce.pastiLoggati : 0,
     alimenti: Array.isArray(voce.alimenti) ? voce.alimenti : [],
-    eventiAllenamento: Array.isArray(voce.eventiAllenamento) ? voce.eventiAllenamento : []
+    eventiAllenamento: Array.isArray(voce.eventiAllenamento) ? voce.eventiAllenamento : [],
+    // `extra` e `sessioneCompletata` sono stati aggiunti dopo il primo motore
+    // pasti adattivo: senza questo whitelisting venivano scartati a ogni
+    // ricarica (perché unisciConDefault costruisce l'oggetto giorno da zero).
+    extra: Array.isArray(voce.extra) ? voce.extra : [],
+    sessioneCompletata: isSessioneCompletataValida(voce.sessioneCompletata) ? voce.sessioneCompletata : null
   };
 }
 
