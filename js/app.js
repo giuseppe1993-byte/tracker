@@ -3,6 +3,7 @@ import { datiDefault } from './dati-default.js';
 import { renderOggi } from './oggi.js';
 import { renderAllenamento } from './allenamento.js';
 import { renderStorico } from './storico.js';
+import { iconCasa, iconManubrio, iconGrafico } from './icons.js';
 
 const state = { data: null };
 
@@ -45,10 +46,24 @@ const renderPerTab = {
   storico: () => renderStorico(document.getElementById('tab-storico'), state.data)
 };
 
+const TAB_CONFIG = [
+  { id: 'oggi', label: 'Oggi', icon: iconCasa },
+  { id: 'allenamento', label: 'Allenamento', icon: iconManubrio },
+  { id: 'storico', label: 'Storico', icon: iconGrafico }
+];
+
 function setupTabs() {
-  document.querySelectorAll('.tab-btn').forEach((btn) => {
+  const nav = document.getElementById('tab-nav');
+  nav.innerHTML = TAB_CONFIG.map(({ id, label, icon }) => `
+    <button data-tab="${id}" class="tab-btn${id === 'oggi' ? ' active' : ''}" type="button">
+      ${icon()}
+      <span>${label}</span>
+    </button>
+  `).join('');
+
+  nav.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+      nav.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
       document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');

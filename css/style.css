@@ -135,6 +135,9 @@ main {
   margin: 0 auto;
 }
 
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
 ul { list-style: none; padding: 0; margin: 0; }
 
 .nota {

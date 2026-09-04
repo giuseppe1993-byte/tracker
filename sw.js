@@ -2,7 +2,7 @@
 // La strategia è cache-first: senza il cambio di nome i dispositivi con la PWA
 // già installata continuerebbero a servire per sempre la vecchia copia in cache
 // e non riceverebbero mai le correzioni.
-const CACHE_NAME = 'fitness-tracker-v3';
+const CACHE_NAME = 'fitness-tracker-v4';
 const ASSET_DA_CACHARE = [
   './',
   './index.html',
@@ -18,7 +18,16 @@ const ASSET_DA_CACHARE = [
   './js/dati-default.js',
   './js/database-alimenti.js',
   './js/budget.js',
-  './icons/icon.svg'
+  './js/giorno-oggi.js',
+  './js/prossima-azione.js',
+  './js/icons.js',
+  './icons/icon.svg',
+  './fonts/barlow-400.woff2',
+  './fonts/barlow-600.woff2',
+  './fonts/barlow-700.woff2',
+  './fonts/barlow-condensed-500.woff2',
+  './fonts/barlow-condensed-600.woff2',
+  './fonts/barlow-condensed-700.woff2'
 ];
 
 self.addEventListener('install', (event) => {
