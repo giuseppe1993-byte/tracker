@@ -16,6 +16,16 @@ export function getGiornoOggi(data) {
   return giorno;
 }
 
+// Aggiunge `ore` a un orario "HH:MM", con wrap-around oltre la mezzanotte
+// (usato per calcolare gli slot dei 4 pasti a partire dal primo del giorno).
+export function orarioPiuOre(ora, ore) {
+  const [h, m] = ora.split(':').map(Number);
+  const totaleMinuti = (((h * 60 + m + ore * 60) % (24 * 60)) + 24 * 60) % (24 * 60);
+  const nuoveOre = Math.floor(totaleMinuti / 60);
+  const nuoviMinuti = totaleMinuti % 60;
+  return `${String(nuoveOre).padStart(2, '0')}:${String(nuoviMinuti).padStart(2, '0')}`;
+}
+
 export function isPostWorkoutOra(giorno) {
   if (giorno.eventiAllenamento.length === 0) return false;
   const ultimoEvento = giorno.eventiAllenamento[giorno.eventiAllenamento.length - 1];

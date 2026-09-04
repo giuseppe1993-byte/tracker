@@ -1,8 +1,11 @@
 import { databaseAlimenti, rapportiCotturaCrudo, combosPasto, targetGiornaliero } from './database-alimenti.js';
 import { calcolaConsumato, calcolaRimasto, suggerisciPasto } from './budget.js';
-import { oraAttuale, getGiornoOggi } from './giorno-oggi.js';
+import { oraAttuale, getGiornoOggi, orarioPiuOre } from './giorno-oggi.js';
 import { prossimaAzione } from './prossima-azione.js';
-import { iconBilancia, iconForchetta } from './icons.js';
+import { iconBilancia, iconForchetta, iconSpunta } from './icons.js';
+
+const PASTI_AL_GIORNO = 4;
+const ORE_TRA_PASTI = 4;
 
 function formatoNumero(n) {
   return Math.round(n * 10) / 10;
@@ -16,6 +19,12 @@ export function renderOggi(container, data, persist) {
   const cottiVisualizzati = new Set(); // indici di `alimenti` mostrati come "cotto" (solo UI, non persistito)
 
   container.innerHTML = `
+    <div id="barra-fissa" class="barra-fissa">
+      <div id="riepilogo-kcal"></div>
+      <div id="pasti-oggi" class="pasti-oggi"></div>
+      <p id="prossimo-pasto-nota" class="nota"></p>
+    </div>
+
     <div id="card-adesso" class="card card-adesso"></div>
 
     <section class="card">
@@ -25,8 +34,8 @@ export function renderOggi(container, data, persist) {
         <button id="btn-peso" type="button">Salva</button>
       </div>
       <span id="esito-peso" class="nota"></span>
-      <h2>Budget di oggi</h2>
-      <div id="riepilogo-budget"></div>
+      <h2>Dettaglio macro</h2>
+      <div id="riepilogo-macro"></div>
     </section>
 
     <details class="sezione" id="dettaglio-mangiato" ${giorno.alimenti.length > 0 ? 'open' : ''}>
@@ -211,16 +220,46 @@ export function renderOggi(container, data, persist) {
     }
   }
 
-  function renderBudget() {
-    const { consumato, rimasto } = statoAttuale();
+  function renderRiepilogoKcal() {
+    const { consumato } = statoAttuale();
     const percentualeKcal = Math.min(100, Math.max(0, (consumato.kcal / targetGiornaliero.kcal) * 100));
     const oltre = consumato.kcal > targetGiornaliero.kcal;
-    container.querySelector('#riepilogo-budget').innerHTML = `
+    container.querySelector('#riepilogo-kcal').innerHTML = `
       <div class="progress-numero">
         <span>${formatoNumero(consumato.kcal)} / ${targetGiornaliero.kcal} kcal</span>
         <span class="badge ${oltre ? 'oltre' : 'ok'}">${oltre ? 'Oltre budget' : 'In linea'}</span>
       </div>
       <div class="progress-bar${oltre ? ' oltre-budget' : ''}"><span style="width:${percentualeKcal}%"></span></div>
+    `;
+  }
+
+  // I 4 pasti si "agganciano" all'orario del primo pasto loggato oggi, +4h
+  // ciascuno — se non hai ancora mangiato nulla restano senza orario. Non
+  // sono legati a un tipo di pasto specifico: si riempiono in ordine man
+  // mano che logghi qualcosa (dalla proposta o manualmente).
+  function renderPastiOggi() {
+    const primoOra = giorno.alimenti.length > 0 ? giorno.alimenti[0].ora : null;
+    container.querySelector('#pasti-oggi').innerHTML = Array.from({ length: PASTI_AL_GIORNO }, (_, i) => {
+      const fatto = giorno.pastiLoggati > i;
+      const orario = primoOra ? orarioPiuOre(primoOra, i * ORE_TRA_PASTI) : null;
+      return `
+        <div class="pasto-slot${fatto ? ' fatto' : ''}">
+          ${fatto ? iconSpunta() : ''}
+          <span>${orario ?? `Pasto ${i + 1}`}</span>
+        </div>
+      `;
+    }).join('');
+
+    const nota = container.querySelector('#prossimo-pasto-nota');
+    const prossimoIndice = giorno.pastiLoggati;
+    nota.textContent = primoOra && prossimoIndice < PASTI_AL_GIORNO
+      ? `Prossimo pasto: alle ${orarioPiuOre(primoOra, prossimoIndice * ORE_TRA_PASTI)}`
+      : '';
+  }
+
+  function renderBudget() {
+    const { consumato, rimasto } = statoAttuale();
+    container.querySelector('#riepilogo-macro').innerHTML = `
       <p>P ${formatoNumero(consumato.p)}g · F ${formatoNumero(consumato.f)}g · C ${formatoNumero(consumato.c)}g</p>
       <p class="nota">Restano: ${formatoNumero(rimasto.kcal)} kcal · ${formatoNumero(rimasto.p)}g P · ${formatoNumero(rimasto.f)}g F · ${formatoNumero(rimasto.c)}g C</p>
     `;
@@ -291,6 +330,8 @@ export function renderOggi(container, data, persist) {
   function renderTutto() {
     container.querySelector('#peso-oggi').value = giorno.peso ?? '';
     renderCardAdesso();
+    renderRiepilogoKcal();
+    renderPastiOggi();
     renderBudget();
     renderListaAlimenti();
   }

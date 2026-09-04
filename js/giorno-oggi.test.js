@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { oggiISO, getGiornoOggi, isPostWorkoutOra } from './giorno-oggi.js';
+import { oggiISO, getGiornoOggi, isPostWorkoutOra, orarioPiuOre } from './giorno-oggi.js';
 
 test('oggiISO restituisce una data in formato YYYY-MM-DD', () => {
   assert.match(oggiISO(), /^\d{4}-\d{2}-\d{2}$/);
@@ -57,4 +57,14 @@ test('isPostWorkoutOra: false se è già stato loggato un alimento dopo il post-
     alimenti: [{ ora: '11:30', alimentoId: 'pollo', grammiCrudi: 100 }]
   };
   assert.equal(isPostWorkoutOra(giorno), false);
+});
+
+test('orarioPiuOre somma ore senza superare la mezzanotte', () => {
+  assert.equal(orarioPiuOre('06:00', 4), '10:00');
+  assert.equal(orarioPiuOre('06:15', 4), '10:15');
+});
+
+test('orarioPiuOre fa il wrap-around oltre la mezzanotte', () => {
+  assert.equal(orarioPiuOre('22:00', 4), '02:00');
+  assert.equal(orarioPiuOre('23:30', 12), '11:30');
 });
