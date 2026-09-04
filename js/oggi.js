@@ -2,7 +2,7 @@ import { databaseAlimenti, rapportiCotturaCrudo, combosPasto, targetGiornaliero 
 import { calcolaConsumato, calcolaRimasto, suggerisciPasto } from './budget.js';
 import { oraAttuale, getGiornoOggi, orarioPiuOre } from './giorno-oggi.js';
 import { prossimaAzione } from './prossima-azione.js';
-import { iconBilancia, iconForchetta, iconSpunta } from './icons.js';
+import { iconForchetta, iconSpunta } from './icons.js';
 
 const PASTI_AL_GIORNO = 4;
 const ORE_TRA_PASTI = 4;
@@ -28,12 +28,6 @@ export function renderOggi(container, data, persist) {
     <div id="card-adesso" class="card card-adesso"></div>
 
     <section class="card">
-      <label for="peso-oggi">${iconBilancia()} Peso di oggi (kg)</label>
-      <div class="peso-input-riga">
-        <input id="peso-oggi" type="number" step="0.1" inputmode="decimal">
-        <button id="btn-peso" type="button">Salva</button>
-      </div>
-      <span id="esito-peso" class="nota"></span>
       <h2>Dettaglio macro</h2>
       <div id="riepilogo-macro"></div>
     </section>
@@ -70,8 +64,6 @@ export function renderOggi(container, data, persist) {
       </div>
     </details>
   `;
-
-  container.querySelector('#peso-oggi').value = giorno.peso ?? '';
 
   const selectAlimento = container.querySelector('#log-alimento');
   selectAlimento.innerHTML = Object.entries(databaseAlimenti)
@@ -328,23 +320,12 @@ export function renderOggi(container, data, persist) {
   }
 
   function renderTutto() {
-    container.querySelector('#peso-oggi').value = giorno.peso ?? '';
     renderCardAdesso();
     renderRiepilogoKcal();
     renderPastiOggi();
     renderBudget();
     renderListaAlimenti();
   }
-
-  function salvaPeso() {
-    const input = container.querySelector('#peso-oggi');
-    giorno.peso = input.value ? Number(input.value) : null;
-    persist();
-    container.querySelector('#esito-peso').textContent = giorno.peso != null ? `Salvato: ${giorno.peso}kg` : '';
-    renderCardAdesso();
-  }
-  container.querySelector('#peso-oggi').addEventListener('change', salvaPeso);
-  container.querySelector('#btn-peso').addEventListener('click', salvaPeso);
 
   container.querySelector('#btn-log-manuale').addEventListener('click', () => {
     const alimentoId = selectAlimento.value;
