@@ -1,10 +1,8 @@
 import { datiDefault } from './dati-default.js';
 import { calcolaSettimana, calcolaFase, applicaDeload } from './mesociclo.js';
 import { calcolaProgressione } from './progressione.js';
-
-function oggiISO() {
-  return new Date().toISOString().slice(0, 10);
-}
+import { oraAttuale, getGiornoOggi, oggiISO } from './giorno-oggi.js';
+import { iconManubrio, iconSpunta } from './icons.js';
 
 function sessioniDisponibili(fase) {
   if (fase === 'fase1') return datiDefault.sessioniPerFase.fase1;
@@ -17,38 +15,49 @@ function tracciaProgressione(esercizioConfig) {
   return esercizioConfig.tracciaProgressione !== false;
 }
 
-function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDeload, onSalva) {
+function salvatoOggi(esercizioStato) {
+  return esercizioStato.storico.some((s) => s.data === oggiISO());
+}
+
+function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDeload, giaFatto, onSalva) {
   const conPeso = tracciaProgressione(esercizioConfig);
   const unita = conPeso ? 'reps' : 'sec/reps';
-  const li = document.createElement('li');
-  const inputsReps = Array.from({ length: serieProgrammate }, (_, i) => `
-    <input type="number" class="rep-input" data-serie="${i}" placeholder="Serie ${i + 1} (target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax})" min="0">
+  const dettaglio = document.createElement('details');
+  dettaglio.className = 'sezione esercizio';
+
+  const righeSerie = Array.from({ length: serieProgrammate }, (_, i) => `
+    <div class="serie-riga">
+      ${conPeso ? `<label>Peso S${i + 1} (kg)<input type="number" class="peso-input" data-serie="${i}" min="0" step="0.5" value="${esercizioStato.ultimoPeso}" inputmode="decimal"></label>` : ''}
+      <label>${conPeso ? `Reps S${i + 1}` : `Serie ${i + 1}`} (target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax})<input type="number" class="rep-input" data-serie="${i}" min="0" inputmode="numeric"></label>
+    </div>
   `).join('');
-  // Il campo peso per serie esiste solo per esercizi con carico esterno (conPeso).
-  const inputsPeso = conPeso
-    ? Array.from({ length: serieProgrammate }, (_, i) => `
-    <input type="number" class="peso-input" data-serie="${i}" placeholder="Peso serie ${i + 1} (kg)" min="0" step="0.5" value="${esercizioStato.ultimoPeso}">
-  `).join('')
-    : '';
 
   const riepilogo = conPeso
     ? `ultimo peso: ${esercizioStato.ultimoPeso}kg${isDeload ? ' (scarico: carico invariato)' : ''}, target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax} ${unita}, ${serieProgrammate} serie`
     : `a corpo libero, target ${esercizioConfig.rangeMin}-${esercizioConfig.rangeMax} ${unita}, ${serieProgrammate} serie`;
 
-  li.innerHTML = `
-    <strong>${esercizioConfig.nome}</strong> — ${riepilogo}
-    <div class="pesi">${inputsPeso}</div>
-    <div class="reps">${inputsReps}</div>
-    <input type="number" class="rpe-input" placeholder="RPE (1-10)" min="1" max="10">
-    <input type="text" class="nota-input" placeholder="Nota (facoltativa)">
-    <button type="button" class="btn-salva">Salva sessione</button>
-    <div class="esito"></div>
+  dettaglio.innerHTML = `
+    <summary>
+      <span class="esercizio-titolo">
+        ${esercizioConfig.nome}
+        ${conPeso ? `<span class="nota">${esercizioStato.ultimoPeso}kg</span>` : ''}
+        ${giaFatto ? `<span class="badge ok">${iconSpunta()} fatto</span>` : ''}
+      </span>
+    </summary>
+    <div class="contenuto">
+      <p class="nota">${riepilogo}</p>
+      ${righeSerie}
+      <label>RPE (1-10)<input type="number" class="rpe-input" min="1" max="10" inputmode="numeric"></label>
+      <label>Nota (facoltativa)<input type="text" class="nota-input"></label>
+      <button type="button" class="btn-salva primario">Salva sessione</button>
+      <div class="esito nota"></div>
+    </div>
   `;
 
   // Il peso della prima serie si copia sulle altre finché non vengono modificate
   // a mano (drop set): si parte tutte uguali, si corregge solo quello che cambia.
   if (conPeso) {
-    const inputsPesoEl = Array.from(li.querySelectorAll('.peso-input'));
+    const inputsPesoEl = Array.from(dettaglio.querySelectorAll('.peso-input'));
     inputsPesoEl.slice(1).forEach((input) => {
       input.addEventListener('input', () => {
         input.dataset.modificato = 'true';
@@ -64,25 +73,25 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDe
     }
   }
 
-  const btnSalva = li.querySelector('.btn-salva');
+  const btnSalva = dettaglio.querySelector('.btn-salva');
   // Protezione dal doppio tap su mobile: due click ravvicinati inserirebbero
   // due voci nello storico e applicherebbero la progressione due volte.
   let giaSalvato = false;
 
   btnSalva.addEventListener('click', () => {
     if (giaSalvato) return;
-    const reps = Array.from(li.querySelectorAll('.rep-input')).map((inp) => Number(inp.value) || 0);
+    const reps = Array.from(dettaglio.querySelectorAll('.rep-input')).map((inp) => Number(inp.value) || 0);
     if (reps.some((r) => r === 0)) {
-      li.querySelector('.esito').textContent = 'Inserisci le reps per tutte le serie prima di salvare.';
+      dettaglio.querySelector('.esito').textContent = 'Inserisci le reps per tutte le serie prima di salvare.';
       return;
     }
-    const pesi = conPeso ? Array.from(li.querySelectorAll('.peso-input')).map((inp) => Number(inp.value) || 0) : [];
+    const pesi = conPeso ? Array.from(dettaglio.querySelectorAll('.peso-input')).map((inp) => Number(inp.value) || 0) : [];
     if (conPeso && pesi.some((p) => p === 0)) {
-      li.querySelector('.esito').textContent = 'Inserisci il peso per tutte le serie prima di salvare.';
+      dettaglio.querySelector('.esito').textContent = 'Inserisci il peso per tutte le serie prima di salvare.';
       return;
     }
-    const rpe = Number(li.querySelector('.rpe-input').value) || null;
-    const nota = li.querySelector('.nota-input').value.trim();
+    const rpe = Number(dettaglio.querySelector('.rpe-input').value) || null;
+    const nota = dettaglio.querySelector('.nota-input').value.trim();
 
     let messaggio;
     if (!conPeso) {
@@ -121,38 +130,72 @@ function renderEsercizio(esercizioConfig, esercizioStato, serieProgrammate, isDe
     giaSalvato = true;
     btnSalva.disabled = true;
     btnSalva.textContent = 'Sessione salvata';
-    li.classList.add('salvato');
 
-    li.querySelector('.esito').textContent = messaggio;
+    dettaglio.querySelector('.esito').textContent = messaggio;
     onSalva();
   });
 
-  return li;
+  return dettaglio;
 }
 
 function renderSessione(container, titolo, sessione, data, persist, riduciSerie, aggiornaAlternanza) {
   const div = document.createElement('div');
   div.innerHTML = `<h3>${titolo}</h3>`;
-  const lista = document.createElement('ul');
+  const lista = document.createElement('div');
+  lista.className = 'lista-esercizi';
+  const dettagli = [];
+
   sessione.esercizi.forEach(({ id, serie }) => {
     const esercizioConfig = datiDefault.esercizi[id];
     const esercizioStato = data.esercizi[id];
     const serieEffettive = riduciSerie ? applicaDeload(serie) : serie;
-    lista.appendChild(renderEsercizio(esercizioConfig, esercizioStato, serieEffettive, riduciSerie, () => {
+    const giaFatto = salvatoOggi(esercizioStato);
+
+    const dettaglio = renderEsercizio(esercizioConfig, esercizioStato, serieEffettive, riduciSerie, giaFatto, () => {
       if (aggiornaAlternanza) {
         // Ricorda quale sessione Upper/Lower è stata fatta per ultima, così la
         // volta dopo l'app propone l'altra invece di lasciare all'utente la scelta a caso.
         data.mesociclo.ultimaSessioneFase2 = sessione.nome;
       }
       persist();
-    }));
+      dettaglio.open = false;
+      dettaglio.classList.add('salvato');
+      const prossimo = dettagli.find((d) => d !== dettaglio && !d.classList.contains('salvato') && !d.open);
+      if (prossimo) prossimo.open = true;
+    });
+
+    if (giaFatto) dettaglio.classList.add('salvato');
+    dettagli.push(dettaglio);
+    lista.appendChild(dettaglio);
   });
+
+  const primoApribile = dettagli.find((d) => !d.classList.contains('salvato'));
+  if (primoApribile) primoApribile.open = true;
+
   div.appendChild(lista);
   container.appendChild(div);
 }
 
 export function renderAllenamento(container, data, persist) {
   container.innerHTML = '';
+  const giorno = getGiornoOggi(data);
+
+  const azioni = document.createElement('div');
+  azioni.className = 'card';
+  azioni.innerHTML = `
+    <button id="btn-inizio-allenamento" type="button" class="primario">${iconManubrio()} Mi sto allenando ora</button>
+    <button id="btn-fine-allenamento" type="button">Ho finito di allenarmi</button>
+  `;
+  container.appendChild(azioni);
+  azioni.querySelector('#btn-inizio-allenamento').addEventListener('click', () => {
+    giorno.eventiAllenamento.push({ ora: oraAttuale(), tipo: 'inizio-allenamento' });
+    persist();
+  });
+  azioni.querySelector('#btn-fine-allenamento').addEventListener('click', () => {
+    giorno.eventiAllenamento.push({ ora: oraAttuale(), tipo: 'post-workout-iniziato' });
+    persist();
+  });
+
   const settimana = calcolaSettimana(data.mesociclo.dataInizio, oggiISO());
   const fase = calcolaFase(settimana);
   const isDeload = fase === 'deload';

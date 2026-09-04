@@ -429,6 +429,13 @@ li.salvato { opacity: 0.7; }
 
 .tab-btn.active { color: var(--color-primary); }
 
+.esercizio-titolo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 /* ===== Grafico storico ===== */
 #grafico-peso { width: 100%; height: auto; max-width: 100%; }
 
