@@ -3,7 +3,8 @@ import { datiDefault } from './dati-default.js';
 import { renderOggi } from './oggi.js';
 import { renderAllenamento } from './allenamento.js';
 import { renderStorico } from './storico.js';
-import { iconCasa, iconManubrio, iconGrafico } from './icons.js';
+import { renderCorpo } from './corpo.js';
+import { iconCasa, iconManubrio, iconGrafico, iconBilancia } from './icons.js';
 
 const state = { data: null };
 
@@ -43,13 +44,15 @@ function persist() {
 const renderPerTab = {
   oggi: () => renderOggi(document.getElementById('tab-oggi'), state.data, persist),
   allenamento: () => renderAllenamento(document.getElementById('tab-allenamento'), state.data, persist),
-  storico: () => renderStorico(document.getElementById('tab-storico'), state.data)
+  storico: () => renderStorico(document.getElementById('tab-storico'), state.data),
+  corpo: () => renderCorpo(document.getElementById('tab-corpo'), state.data, persist)
 };
 
 const TAB_CONFIG = [
   { id: 'oggi', label: 'Alimentazione', icon: iconCasa },
   { id: 'allenamento', label: 'Allenamento', icon: iconManubrio },
-  { id: 'storico', label: 'Storico', icon: iconGrafico }
+  { id: 'storico', label: 'Storico', icon: iconGrafico },
+  { id: 'corpo', label: 'Corpo', icon: iconBilancia }
 ];
 
 function setupTabs() {

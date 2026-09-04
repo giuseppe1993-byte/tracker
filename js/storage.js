@@ -6,7 +6,8 @@ export function getDefaultData(datiDefault) {
   return {
     mesociclo: { dataInizio: null, ultimaSessioneFase2: null },
     esercizi: structuredClone(datiDefault.esercizi),
-    pasti: {}
+    pasti: {},
+    profilo: { sesso: null, eta: null, altezzaCm: null, livelloAttivita: 'sedentario' }
   };
 }
 
@@ -99,7 +100,8 @@ function unisciConDefault(datiDefault, salvati) {
     ...salvati,
     mesociclo: { ...base.mesociclo, ...salvati.mesociclo },
     esercizi: unisciEsercizi(datiDefault, salvati.esercizi),
-    pasti: unisciPasti(salvati.pasti)
+    pasti: unisciPasti(salvati.pasti),
+    profilo: { ...base.profilo, ...salvati.profilo }
   };
 }
 

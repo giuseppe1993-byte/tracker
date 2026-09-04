@@ -18,6 +18,26 @@ test('getDefaultData restituisce la struttura base', () => {
   assert.deepEqual(data.pasti, {});
   assert.ok(data.esercizi.squat);
   assert.equal(data.esercizi.squat.rangeMin, 6);
+  assert.deepEqual(data.profilo, { sesso: null, eta: null, altezzaCm: null, livelloAttivita: 'sedentario' });
+});
+
+test('loadData su un salvataggio senza profilo (installazioni precedenti) usa i default', () => {
+  const backend = fakeBackend();
+  backend.setItem(
+    'fitnessTrackerData',
+    JSON.stringify({ mesociclo: { dataInizio: '2026-09-01' }, esercizi: {}, pasti: {} })
+  );
+  const data = loadData(datiDefault, backend);
+  assert.deepEqual(data.profilo, { sesso: null, eta: null, altezzaCm: null, livelloAttivita: 'sedentario' });
+});
+
+test('loadData preserva il profilo su un round-trip salva/ricarica', () => {
+  const backend = fakeBackend();
+  const data = getDefaultData(datiDefault);
+  data.profilo = { sesso: 'M', eta: 30, altezzaCm: 180, livelloAttivita: 'moderato' };
+  saveData(data, backend);
+  const ricaricato = loadData(datiDefault, backend);
+  assert.deepEqual(ricaricato.profilo, { sesso: 'M', eta: 30, altezzaCm: 180, livelloAttivita: 'moderato' });
 });
 
 test('loadData su backend vuoto restituisce i default', () => {
