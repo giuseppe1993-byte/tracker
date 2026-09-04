@@ -167,7 +167,7 @@ export function renderOggi(container, data, persist) {
     container.querySelector('#riepilogo-budget').innerHTML = `
       <div class="progress-numero">
         <span>${formatoNumero(consumato.kcal)} / ${targetGiornaliero.kcal} kcal</span>
-        <span class="badge ${oltre ? '' : 'ok'}">${oltre ? 'Oltre budget' : 'In linea'}</span>
+        <span class="badge ${oltre ? 'oltre' : 'ok'}">${oltre ? 'Oltre budget' : 'In linea'}</span>
       </div>
       <div class="progress-bar${oltre ? ' oltre-budget' : ''}"><span style="width:${percentualeKcal}%"></span></div>
       <p>P ${formatoNumero(consumato.p)}g · F ${formatoNumero(consumato.f)}g · C ${formatoNumero(consumato.c)}g</p>
