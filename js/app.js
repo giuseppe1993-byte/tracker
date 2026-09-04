@@ -47,7 +47,7 @@ const renderPerTab = {
 };
 
 const TAB_CONFIG = [
-  { id: 'oggi', label: 'Oggi', icon: iconCasa },
+  { id: 'oggi', label: 'Alimentazione', icon: iconCasa },
   { id: 'allenamento', label: 'Allenamento', icon: iconManubrio },
   { id: 'storico', label: 'Storico', icon: iconGrafico }
 ];

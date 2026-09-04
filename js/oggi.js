@@ -75,49 +75,94 @@ export function renderOggi(container, data, persist) {
     return { consumato, rimasto };
   }
 
-  function renderSuggerimentoIn(card, postWorkout) {
+  // Prima colazione: solo se non è già stato loggato nulla oggi ed è ancora
+  // mattina presto — dal secondo pasto in poi (o dopo le 10) si torna alla
+  // rotazione normale, così la stessa logica non ripropone uova+avena a pranzo.
+  const ORA_LIMITE_COLAZIONE = 10;
+  function isColazioneOra() {
+    const ora = Number(oraAttuale().split(':')[0]);
+    return giorno.pastiLoggati === 0 && ora < ORA_LIMITE_COLAZIONE;
+  }
+
+  function renderSuggerimentoIn(card, tipo) {
     const { rimasto } = statoAttuale();
-    const lista = postWorkout ? combosPasto.postWorkout : combosPasto.normale;
-    const indice = postWorkout ? indiceComboPostWorkout % lista.length : indiceComboNormale % lista.length;
-    const combo = lista[indice];
+    let combo;
+    if (tipo === 'colazione') {
+      combo = combosPasto.colazioneDefault;
+    } else {
+      const lista = tipo === 'post-workout' ? combosPasto.postWorkout : combosPasto.normale;
+      const indice = tipo === 'post-workout' ? indiceComboPostWorkout % lista.length : indiceComboNormale % lista.length;
+      combo = lista[indice];
+    }
 
     const suggerimento = suggerisciPasto({
       rimasto,
       pastiLoggatiOggi: giorno.pastiLoggati,
-      isPostWorkout: postWorkout,
+      isPostWorkout: tipo === 'post-workout',
       combo,
       databaseAlimenti
     });
 
-    const parti = [`${suggerimento.proteina.grammiCrudi}g ${databaseAlimenti[suggerimento.proteina.alimentoId].nome} (crudo)`];
-    if (suggerimento.carbo) {
-      parti.push(`${suggerimento.carbo.grammiCrudi}g ${databaseAlimenti[suggerimento.carbo.alimentoId].nome} (crudo)`);
+    // La proposta viene sempre salvata a crudo (come il resto dell'app): il
+    // tasto "mostra cotto" cambia solo la visualizzazione, non i grammi loggati.
+    let mostraCotto = false;
+    const puoConvertire = Boolean(
+      rapportiCotturaCrudo[suggerimento.proteina.alimentoId] ||
+      (suggerimento.carbo && rapportiCotturaCrudo[suggerimento.carbo.alimentoId])
+    );
+
+    function descrizioneParte(alimentoId, grammiCrudi) {
+      const rapporto = rapportiCotturaCrudo[alimentoId];
+      const converti = mostraCotto && rapporto;
+      const grammi = converti ? Math.round(grammiCrudi * rapporto) : grammiCrudi;
+      return `${grammi}g ${databaseAlimenti[alimentoId].nome} (${converti ? 'cotto' : 'crudo'})`;
     }
 
-    card.innerHTML = `
-      <p class="etichetta">${postWorkout ? 'Post-workout' : 'Adesso'}</p>
-      <p>${parti.join(' + ')}</p>
-      ${suggerimento.nota ? `<p class="nota">${suggerimento.nota}</p>` : ''}
-      <button id="btn-aggiungi-suggerimento" type="button" class="primario">Aggiungi al log</button>
-      <button id="btn-cambia-proposta" type="button">Cambia proposta</button>
-    `;
+    const etichette = { 'post-workout': 'Post-workout', colazione: 'Colazione', normale: 'Adesso' };
 
-    card.querySelector('#btn-aggiungi-suggerimento').addEventListener('click', () => {
-      const ora = oraAttuale();
-      giorno.alimenti.push({ ora, alimentoId: suggerimento.proteina.alimentoId, grammiCrudi: suggerimento.proteina.grammiCrudi, modalitaInserita: 'crudo' });
-      if (suggerimento.carbo) {
-        giorno.alimenti.push({ ora, alimentoId: suggerimento.carbo.alimentoId, grammiCrudi: suggerimento.carbo.grammiCrudi, modalitaInserita: 'crudo' });
+    function disegna() {
+      const parti = [descrizioneParte(suggerimento.proteina.alimentoId, suggerimento.proteina.grammiCrudi)];
+      if (suggerimento.carbo) parti.push(descrizioneParte(suggerimento.carbo.alimentoId, suggerimento.carbo.grammiCrudi));
+
+      card.innerHTML = `
+        <p class="etichetta">${etichette[tipo]}</p>
+        <p>${parti.join(' + ')}</p>
+        ${suggerimento.nota ? `<p class="nota">${suggerimento.nota}</p>` : ''}
+        <button id="btn-aggiungi-suggerimento" type="button" class="primario">Aggiungi al log</button>
+        ${puoConvertire ? `<button id="btn-cotto-suggerimento" type="button">${mostraCotto ? 'Mostra crudo' : 'Mostra cotto'}</button>` : ''}
+        ${tipo !== 'colazione' ? '<button id="btn-cambia-proposta" type="button">Cambia proposta</button>' : ''}
+      `;
+
+      card.querySelector('#btn-aggiungi-suggerimento').addEventListener('click', () => {
+        const ora = oraAttuale();
+        giorno.alimenti.push({ ora, alimentoId: suggerimento.proteina.alimentoId, grammiCrudi: suggerimento.proteina.grammiCrudi, modalitaInserita: 'crudo' });
+        if (suggerimento.carbo) {
+          giorno.alimenti.push({ ora, alimentoId: suggerimento.carbo.alimentoId, grammiCrudi: suggerimento.carbo.grammiCrudi, modalitaInserita: 'crudo' });
+        }
+        giorno.pastiLoggati += 1;
+        persist();
+        renderTutto();
+      });
+
+      const btnCotto = card.querySelector('#btn-cotto-suggerimento');
+      if (btnCotto) {
+        btnCotto.addEventListener('click', () => {
+          mostraCotto = !mostraCotto;
+          disegna();
+        });
       }
-      giorno.pastiLoggati += 1;
-      persist();
-      renderTutto();
-    });
 
-    card.querySelector('#btn-cambia-proposta').addEventListener('click', () => {
-      if (postWorkout) indiceComboPostWorkout += 1;
-      else indiceComboNormale += 1;
-      renderSuggerimentoIn(card, postWorkout);
-    });
+      const btnCambia = card.querySelector('#btn-cambia-proposta');
+      if (btnCambia) {
+        btnCambia.addEventListener('click', () => {
+          if (tipo === 'post-workout') indiceComboPostWorkout += 1;
+          else indiceComboNormale += 1;
+          renderSuggerimentoIn(card, tipo);
+        });
+      }
+    }
+
+    disegna();
   }
 
   function renderCardAdesso() {
@@ -157,7 +202,13 @@ export function renderOggi(container, data, persist) {
       return;
     }
 
-    renderSuggerimentoIn(card, azione.tipo === 'post-workout');
+    if (azione.tipo === 'post-workout') {
+      renderSuggerimentoIn(card, 'post-workout');
+    } else if (isColazioneOra()) {
+      renderSuggerimentoIn(card, 'colazione');
+    } else {
+      renderSuggerimentoIn(card, 'normale');
+    }
   }
 
   function renderBudget() {
