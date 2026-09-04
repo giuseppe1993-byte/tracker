@@ -1,11 +1,17 @@
 import { datiDefault } from './dati-default.js';
 
+function coloreToken(nome, fallback) {
+  const valore = getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+  return valore || fallback;
+}
+
 function disegnaGraficoPeso(canvas, punti) {
   const ctx = canvas.getContext('2d');
   const w = canvas.width;
   const h = canvas.height;
   ctx.clearRect(0, 0, w, h);
   if (punti.length < 2) {
+    ctx.fillStyle = coloreToken('--color-muted-foreground', '#666');
     ctx.fillText('Dati insufficienti per il grafico (minimo 2 pesate)', 10, h / 2);
     return;
   }
@@ -21,7 +27,7 @@ function disegnaGraficoPeso(canvas, punti) {
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = '#2563eb';
+  ctx.strokeStyle = coloreToken('--color-primary', '#F97316');
   ctx.lineWidth = 2;
   ctx.stroke();
 }
@@ -47,15 +53,21 @@ export function renderStorico(container, data) {
     .map(([data_, g]) => ({ data: data_, peso: g.peso }));
 
   const giorniTotali = Object.keys(data.pasti).length;
-  const giorniAderenti = Object.values(data.pasti).filter((g) => g.fatti.length === 4).length;
+  const giorniAderenti = Object.values(data.pasti).filter((g) => g.pastiLoggati >= 4).length;
 
   container.innerHTML = `
-    <h2>Peso corporeo</h2>
-    <canvas id="grafico-peso" width="320" height="150"></canvas>
-    <h2>Aderenza pasti</h2>
-    <p>${giorniAderenti} / ${giorniTotali} giorni con tutti e 4 i pasti completati</p>
-    <h2>Storico carichi</h2>
-    <ul id="lista-carichi"></ul>
+    <section class="card">
+      <h2>Peso corporeo</h2>
+      <canvas id="grafico-peso" width="320" height="150"></canvas>
+    </section>
+    <section class="card">
+      <h2>Aderenza pasti</h2>
+      <p>${giorniAderenti} / ${giorniTotali} giorni con tutti e 4 i pasti completati</p>
+    </section>
+    <section class="card">
+      <h2>Storico carichi</h2>
+      <ul id="lista-carichi"></ul>
+    </section>
     <button id="btn-backup" type="button">Esporta backup</button>
   `;
 
