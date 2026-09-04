@@ -1,6 +1,8 @@
 import { databaseAlimenti, rapportiCotturaCrudo, combosPasto, targetGiornaliero } from './database-alimenti.js';
 import { calcolaConsumato, calcolaRimasto, suggerisciPasto } from './budget.js';
-import { oraAttuale, getGiornoOggi, isPostWorkoutOra } from './giorno-oggi.js';
+import { oraAttuale, getGiornoOggi } from './giorno-oggi.js';
+import { prossimaAzione } from './prossima-azione.js';
+import { iconBilancia, iconForchetta } from './icons.js';
 
 function formatoNumero(n) {
   return Math.round(n * 10) / 10;
@@ -14,43 +16,50 @@ export function renderOggi(container, data, persist) {
   const cottiVisualizzati = new Set(); // indici di `alimenti` mostrati come "cotto" (solo UI, non persistito)
 
   container.innerHTML = `
-    <div>
-      <label>Peso di oggi (kg): <input id="peso-oggi" type="number" step="0.1" inputmode="decimal"></label>
-      <button id="btn-peso" type="button">Salva peso</button>
-      <span id="esito-peso"></span>
-    </div>
+    <div id="card-adesso" class="card card-adesso"></div>
 
-    <h2>Cosa mangiare adesso</h2>
-    <div id="suggerimento"></div>
+    <section class="card">
+      <label for="peso-oggi">${iconBilancia()} Peso di oggi (kg)</label>
+      <div class="peso-input-riga">
+        <input id="peso-oggi" type="number" step="0.1" inputmode="decimal">
+        <button id="btn-peso" type="button">Salva</button>
+      </div>
+      <span id="esito-peso" class="nota"></span>
+      <h2>Budget di oggi</h2>
+      <div id="riepilogo-budget"></div>
+    </section>
 
-    <h2>Budget di oggi</h2>
-    <div id="riepilogo-budget"></div>
+    <details class="sezione" id="dettaglio-mangiato">
+      <summary>${iconForchetta()} Mangiato oggi</summary>
+      <div class="contenuto">
+        <ul id="lista-alimenti"></ul>
+      </div>
+    </details>
 
-    <div>
-      <button id="btn-inizio-allenamento" type="button">Mi sto allenando ora</button>
-      <button id="btn-fine-allenamento" type="button">Ho finito di allenarmi</button>
-    </div>
+    <details class="sezione" id="dettaglio-manuale">
+      <summary>Aggiungi manualmente</summary>
+      <div class="contenuto">
+        <label for="log-alimento">Alimento</label>
+        <select id="log-alimento"></select>
+        <label for="log-grammi">Grammi</label>
+        <input id="log-grammi" type="number" placeholder="grammi" min="0" inputmode="numeric">
+        <label for="log-modalita">Modalità</label>
+        <select id="log-modalita">
+          <option value="crudo">Crudo</option>
+          <option value="cotto">Cotto</option>
+        </select>
+        <button id="btn-log-manuale" type="button">Aggiungi</button>
+      </div>
+    </details>
 
-    <h2>Aggiungi manualmente</h2>
-    <div>
-      <select id="log-alimento"></select>
-      <input id="log-grammi" type="number" placeholder="grammi" min="0">
-      <select id="log-modalita">
-        <option value="crudo">Crudo</option>
-        <option value="cotto">Cotto</option>
-      </select>
-      <button id="btn-log-manuale" type="button">Aggiungi</button>
-    </div>
-
-    <h2>Mangiato oggi</h2>
-    <ul id="lista-alimenti"></ul>
-
-    <h2>Nota fuori piano</h2>
-    <div>
-      <input id="extra-testo" placeholder="Aggiungi cibo/nota fuori piano">
-      <button id="btn-extra" type="button">+ Aggiungi</button>
-    </div>
-    <ul id="lista-extra"></ul>
+    <details class="sezione" id="dettaglio-extra">
+      <summary>Note fuori piano</summary>
+      <div class="contenuto">
+        <input id="extra-testo" placeholder="Aggiungi cibo/nota fuori piano">
+        <button id="btn-extra" type="button">+ Aggiungi</button>
+        <ul id="lista-extra"></ul>
+      </div>
+    </details>
   `;
 
   container.querySelector('#peso-oggi').value = giorno.peso ?? '';
@@ -66,9 +75,8 @@ export function renderOggi(container, data, persist) {
     return { consumato, rimasto };
   }
 
-  function renderSuggerimento() {
+  function renderSuggerimentoIn(card, postWorkout) {
     const { rimasto } = statoAttuale();
-    const postWorkout = isPostWorkoutOra(giorno);
     const lista = postWorkout ? combosPasto.postWorkout : combosPasto.normale;
     const indice = postWorkout ? indiceComboPostWorkout % lista.length : indiceComboNormale % lista.length;
     const combo = lista[indice];
@@ -86,15 +94,15 @@ export function renderOggi(container, data, persist) {
       parti.push(`${suggerimento.carbo.grammiCrudi}g ${databaseAlimenti[suggerimento.carbo.alimentoId].nome} (crudo)`);
     }
 
-    const div = container.querySelector('#suggerimento');
-    div.innerHTML = `
-      <p>${postWorkout ? '<strong>Post-workout</strong> — ' : ''}${parti.join(' + ')}</p>
-      ${suggerimento.nota ? `<p><em>${suggerimento.nota}</em></p>` : ''}
-      <button id="btn-aggiungi-suggerimento" type="button">Aggiungi al log</button>
+    card.innerHTML = `
+      <p class="etichetta">${postWorkout ? 'Post-workout' : 'Adesso'}</p>
+      <p>${parti.join(' + ')}</p>
+      ${suggerimento.nota ? `<p class="nota">${suggerimento.nota}</p>` : ''}
+      <button id="btn-aggiungi-suggerimento" type="button" class="primario">Aggiungi al log</button>
       <button id="btn-cambia-proposta" type="button">Cambia proposta</button>
     `;
 
-    div.querySelector('#btn-aggiungi-suggerimento').addEventListener('click', () => {
+    card.querySelector('#btn-aggiungi-suggerimento').addEventListener('click', () => {
       const ora = oraAttuale();
       giorno.alimenti.push({ ora, alimentoId: suggerimento.proteina.alimentoId, grammiCrudi: suggerimento.proteina.grammiCrudi, modalitaInserita: 'crudo' });
       if (suggerimento.carbo) {
@@ -105,18 +113,65 @@ export function renderOggi(container, data, persist) {
       renderTutto();
     });
 
-    div.querySelector('#btn-cambia-proposta').addEventListener('click', () => {
+    card.querySelector('#btn-cambia-proposta').addEventListener('click', () => {
       if (postWorkout) indiceComboPostWorkout += 1;
       else indiceComboNormale += 1;
-      renderSuggerimento();
+      renderSuggerimentoIn(card, postWorkout);
     });
+  }
+
+  function renderCardAdesso() {
+    const card = container.querySelector('#card-adesso');
+    const azione = prossimaAzione(giorno);
+
+    if (azione.tipo === 'pesati') {
+      card.innerHTML = `
+        <p class="etichetta">Adesso</p>
+        <p>Pesati stamattina</p>
+        <div class="peso-input-riga">
+          <input id="peso-adesso-input" type="number" step="0.1" inputmode="decimal" aria-label="Peso di oggi in kg" placeholder="kg">
+          <button id="btn-peso-adesso" type="button" class="primario">Ho fatto</button>
+        </div>
+      `;
+      card.querySelector('#btn-peso-adesso').addEventListener('click', () => {
+        const valore = Number(card.querySelector('#peso-adesso-input').value);
+        if (!valore) return;
+        giorno.peso = valore;
+        persist();
+        renderTutto();
+      });
+      return;
+    }
+
+    if (azione.tipo === 'allenamento-in-corso') {
+      card.innerHTML = `
+        <p class="etichetta">Adesso</p>
+        <p>Sei in allenamento</p>
+        <button id="btn-fine-allenamento-adesso" type="button" class="primario">Ho finito di allenarmi</button>
+      `;
+      card.querySelector('#btn-fine-allenamento-adesso').addEventListener('click', () => {
+        giorno.eventiAllenamento.push({ ora: oraAttuale(), tipo: 'post-workout-iniziato' });
+        persist();
+        renderTutto();
+      });
+      return;
+    }
+
+    renderSuggerimentoIn(card, azione.tipo === 'post-workout');
   }
 
   function renderBudget() {
     const { consumato, rimasto } = statoAttuale();
+    const percentualeKcal = Math.min(100, Math.max(0, (consumato.kcal / targetGiornaliero.kcal) * 100));
+    const oltre = consumato.kcal > targetGiornaliero.kcal;
     container.querySelector('#riepilogo-budget').innerHTML = `
-      <p>Consumato oggi: ${formatoNumero(consumato.kcal)} kcal | ${formatoNumero(consumato.p)}g P | ${formatoNumero(consumato.f)}g F | ${formatoNumero(consumato.c)}g C</p>
-      <p>Ti restano: ${formatoNumero(rimasto.kcal)} kcal | ${formatoNumero(rimasto.p)}g P | ${formatoNumero(rimasto.f)}g F | ${formatoNumero(rimasto.c)}g C</p>
+      <div class="progress-numero">
+        <span>${formatoNumero(consumato.kcal)} / ${targetGiornaliero.kcal} kcal</span>
+        <span class="badge ${oltre ? '' : 'ok'}">${oltre ? 'Oltre budget' : 'In linea'}</span>
+      </div>
+      <div class="progress-bar${oltre ? ' oltre-budget' : ''}"><span style="width:${percentualeKcal}%"></span></div>
+      <p>P ${formatoNumero(consumato.p)}g · F ${formatoNumero(consumato.f)}g · C ${formatoNumero(consumato.c)}g</p>
+      <p class="nota">Restano: ${formatoNumero(rimasto.kcal)} kcal · ${formatoNumero(rimasto.p)}g P · ${formatoNumero(rimasto.f)}g F · ${formatoNumero(rimasto.c)}g C</p>
     `;
   }
 
@@ -133,6 +188,7 @@ export function renderOggi(container, data, persist) {
       const testo = document.createTextNode(`${voce.ora} — ${pesoMostrato}g ${alimento.nome} (${mostraCotto ? 'cotto' : 'crudo'}) `);
       li.appendChild(testo);
 
+      const azioni = document.createElement('div');
       if (rapporto) {
         const btnToggle = document.createElement('button');
         btnToggle.type = 'button';
@@ -142,19 +198,21 @@ export function renderOggi(container, data, persist) {
           else cottiVisualizzati.add(i);
           renderListaAlimenti();
         });
-        li.appendChild(btnToggle);
+        azioni.appendChild(btnToggle);
       }
 
       const btnRimuovi = document.createElement('button');
       btnRimuovi.type = 'button';
+      btnRimuovi.className = 'distruttivo';
       btnRimuovi.textContent = 'rimuovi';
       btnRimuovi.addEventListener('click', () => {
         giorno.alimenti.splice(i, 1);
         persist();
         renderTutto();
       });
-      li.appendChild(btnRimuovi);
+      azioni.appendChild(btnRimuovi);
 
+      li.appendChild(azioni);
       lista.appendChild(li);
     });
   }
@@ -167,6 +225,7 @@ export function renderOggi(container, data, persist) {
       li.appendChild(document.createTextNode(e.testo + ' '));
       const btn = document.createElement('button');
       btn.type = 'button';
+      btn.className = 'distruttivo';
       btn.textContent = 'rimuovi';
       btn.addEventListener('click', () => {
         giorno.extra.splice(i, 1);
@@ -179,7 +238,7 @@ export function renderOggi(container, data, persist) {
   }
 
   function renderTutto() {
-    renderSuggerimento();
+    renderCardAdesso();
     renderBudget();
     renderListaAlimenti();
   }
@@ -189,20 +248,10 @@ export function renderOggi(container, data, persist) {
     giorno.peso = input.value ? Number(input.value) : null;
     persist();
     container.querySelector('#esito-peso').textContent = giorno.peso != null ? `Salvato: ${giorno.peso}kg` : '';
+    renderCardAdesso();
   }
   container.querySelector('#peso-oggi').addEventListener('change', salvaPeso);
   container.querySelector('#btn-peso').addEventListener('click', salvaPeso);
-
-  container.querySelector('#btn-inizio-allenamento').addEventListener('click', () => {
-    giorno.eventiAllenamento.push({ ora: oraAttuale(), tipo: 'inizio-allenamento' });
-    persist();
-  });
-
-  container.querySelector('#btn-fine-allenamento').addEventListener('click', () => {
-    giorno.eventiAllenamento.push({ ora: oraAttuale(), tipo: 'post-workout-iniziato' });
-    persist();
-    renderTutto();
-  });
 
   container.querySelector('#btn-log-manuale').addEventListener('click', () => {
     const alimentoId = selectAlimento.value;
