@@ -29,7 +29,7 @@ export function renderOggi(container, data, persist) {
       <div id="riepilogo-budget"></div>
     </section>
 
-    <details class="sezione" id="dettaglio-mangiato">
+    <details class="sezione" id="dettaglio-mangiato" ${giorno.alimenti.length > 0 ? 'open' : ''}>
       <summary>${iconForchetta()} Mangiato oggi</summary>
       <div class="contenuto">
         <ul id="lista-alimenti"></ul>
@@ -52,7 +52,7 @@ export function renderOggi(container, data, persist) {
       </div>
     </details>
 
-    <details class="sezione" id="dettaglio-extra">
+    <details class="sezione" id="dettaglio-extra" ${giorno.extra.length > 0 ? 'open' : ''}>
       <summary>Note fuori piano</summary>
       <div class="contenuto">
         <input id="extra-testo" placeholder="Aggiungi cibo/nota fuori piano">
@@ -238,6 +238,7 @@ export function renderOggi(container, data, persist) {
   }
 
   function renderTutto() {
+    container.querySelector('#peso-oggi').value = giorno.peso ?? '';
     renderCardAdesso();
     renderBudget();
     renderListaAlimenti();

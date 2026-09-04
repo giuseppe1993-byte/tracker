@@ -3,6 +3,7 @@ import { calcolaSettimana, calcolaFase, applicaDeload } from './mesociclo.js';
 import { calcolaProgressione } from './progressione.js';
 import { oraAttuale, getGiornoOggi, oggiISO } from './giorno-oggi.js';
 import { iconManubrio, iconSpunta } from './icons.js';
+import { prossimaAzione } from './prossima-azione.js';
 
 function sessioniDisponibili(fase) {
   if (fase === 'fase1') return datiDefault.sessioniPerFase.fase1;
@@ -160,6 +161,10 @@ function renderSessione(container, titolo, sessione, data, persist, riduciSerie,
       persist();
       dettaglio.open = false;
       dettaglio.classList.add('salvato');
+      const titolo = dettaglio.querySelector('.esercizio-titolo');
+      if (titolo && !titolo.querySelector('.badge')) {
+        titolo.insertAdjacentHTML('beforeend', ` <span class="badge ok">${iconSpunta()} fatto</span>`);
+      }
       const prossimo = dettagli.find((d) => d !== dettaglio && !d.classList.contains('salvato') && !d.open);
       if (prossimo) prossimo.open = true;
     });
@@ -182,19 +187,47 @@ export function renderAllenamento(container, data, persist) {
 
   const azioni = document.createElement('div');
   azioni.className = 'card';
-  azioni.innerHTML = `
-    <button id="btn-inizio-allenamento" type="button" class="primario">${iconManubrio()} Mi sto allenando ora</button>
-    <button id="btn-fine-allenamento" type="button">Ho finito di allenarmi</button>
-  `;
   container.appendChild(azioni);
-  azioni.querySelector('#btn-inizio-allenamento').addEventListener('click', () => {
-    giorno.eventiAllenamento.push({ ora: oraAttuale(), tipo: 'inizio-allenamento' });
-    persist();
-  });
-  azioni.querySelector('#btn-fine-allenamento').addEventListener('click', () => {
-    giorno.eventiAllenamento.push({ ora: oraAttuale(), tipo: 'post-workout-iniziato' });
-    persist();
-  });
+
+  // Ridisegna solo questo blocchetto di pulsanti dopo ogni tap, così l'utente
+  // vede subito lo stato aggiornato invece di poter premere più volte lo
+  // stesso pulsante (o "Ho finito" quando non è nemmeno iniziato un allenamento).
+  function renderAzioniAllenamento() {
+    const azioneAttuale = prossimaAzione(giorno);
+
+    if (azioneAttuale.tipo === 'allenamento-in-corso') {
+      const eventiInizio = giorno.eventiAllenamento.filter((e) => e.tipo === 'inizio-allenamento');
+      const ultimoInizio = eventiInizio[eventiInizio.length - 1];
+      azioni.innerHTML = `
+        <p class="nota">In allenamento dalle ${ultimoInizio ? ultimoInizio.ora : '—'}</p>
+        <button id="btn-fine-allenamento" type="button" class="primario">Ho finito di allenarmi</button>
+      `;
+    } else {
+      azioni.innerHTML = `
+        <button id="btn-inizio-allenamento" type="button" class="primario">${iconManubrio()} Mi sto allenando ora</button>
+      `;
+    }
+
+    const btnInizio = azioni.querySelector('#btn-inizio-allenamento');
+    if (btnInizio) {
+      btnInizio.addEventListener('click', () => {
+        giorno.eventiAllenamento.push({ ora: oraAttuale(), tipo: 'inizio-allenamento' });
+        persist();
+        renderAzioniAllenamento();
+      });
+    }
+
+    const btnFine = azioni.querySelector('#btn-fine-allenamento');
+    if (btnFine) {
+      btnFine.addEventListener('click', () => {
+        giorno.eventiAllenamento.push({ ora: oraAttuale(), tipo: 'post-workout-iniziato' });
+        persist();
+        renderAzioniAllenamento();
+      });
+    }
+  }
+
+  renderAzioniAllenamento();
 
   const settimana = calcolaSettimana(data.mesociclo.dataInizio, oggiISO());
   const fase = calcolaFase(settimana);

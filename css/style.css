@@ -148,7 +148,8 @@ ul { list-style: none; padding: 0; margin: 0; }
 }
 
 .errore {
-  color: var(--color-destructive);
+  background: var(--color-destructive);
+  color: var(--color-on-destructive);
   padding: var(--space-4);
 }
 
@@ -157,7 +158,7 @@ ul { list-style: none; padding: 0; margin: 0; }
   top: 0;
   z-index: 20;
   background: var(--color-destructive);
-  color: #fff;
+  color: var(--color-on-destructive);
   border-bottom: 2px solid var(--color-destructive);
 }
 
@@ -203,6 +204,14 @@ button, .progress-bar > span, details.sezione > summary::after {
   margin: 0 0 var(--space-3);
 }
 
+/* .nota di base usa --color-muted-foreground, pensato per stare su una card
+   normale: dentro la card Adesso (sfondo arancione pieno) fallisce il
+   contrasto 4.5:1. Qui eredita il colore "on-primary" della card stessa. */
+.card-adesso .nota {
+  color: inherit;
+  opacity: 0.9;
+}
+
 /* ===== Bottoni ===== */
 button {
   font-family: var(--font-body);
@@ -224,6 +233,11 @@ button {
 }
 
 button.primario {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.card-adesso button.primario {
   background: var(--color-on-primary);
   color: var(--color-primary);
 }
@@ -384,17 +398,34 @@ details.sezione > .contenuto {
 }
 
 details.esercizio { margin-bottom: var(--space-2); }
-details.esercizio.salvato > summary { color: var(--color-accent); }
+/* --color-accent (#22C55E) diretto sulla card fallisce 4.5:1 in tema chiaro
+   (~2.3:1 su #FFFFFF). #15803D passa sia sul chiaro (~5.0:1) sia, come
+   fallback, sullo scuro, ma in tema scuro il verde del token accede a un
+   contrasto migliore (~5.2:1 su #313742) quindi lo si ripristina lì. */
+details.esercizio.salvato > summary { color: #15803D; }
+@media (prefers-color-scheme: dark) {
+  details.esercizio.salvato > summary { color: var(--color-accent); }
+}
 details.esercizio[open] { border-color: var(--color-primary); }
 
 /* ===== Liste ===== */
-li {
+/* Righe a due elementi (testo + azioni): oggi.js le popola sempre con questa
+   forma, quindi qui ha senso una riga flessibile testo/azioni affiancati. */
+#lista-alimenti li, #lista-extra li {
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+}
+
+/* #lista-carichi (storico.js) inserisce fino a 3 figli (nome, testo, nota
+   opzionale): niente flex, così la nota va a capo su una riga propria
+   invece di essere schiacciata sulla stessa riga del nome. */
+#lista-carichi li {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 li.salvato { opacity: 0.7; }
@@ -432,7 +463,13 @@ li.salvato { opacity: 0.7; }
 
 .tab-btn svg { width: 22px; height: 22px; }
 
-.tab-btn.active { color: var(--color-primary); }
+/* --color-primary (#F97316) diretto sullo sfondo della barra (--color-card)
+   fallisce 4.5:1 in entrambi i temi (~2.8:1 chiaro, ~4.2:1 scuro). Un
+   arancione più scuro in chiaro e uno più chiaro in scuro passano entrambi. */
+.tab-btn.active { color: #C2410C; }
+@media (prefers-color-scheme: dark) {
+  .tab-btn.active { color: #FB923C; }
+}
 
 .esercizio-titolo {
   display: flex;
