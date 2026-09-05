@@ -1,6 +1,6 @@
-import { databaseAlimenti, rapportiCotturaCrudo, combosPasto, targetGiornaliero } from './database-alimenti.js';
+import { databaseAlimenti, rapportiCotturaCrudo, combosPasto, colazioneFissa, targetGiornaliero } from './database-alimenti.js';
 import { calcolaConsumato, calcolaRimasto, suggerisciPasto } from './budget.js';
-import { oraAttuale, getGiornoOggi, orarioPiuOre } from './giorno-oggi.js';
+import { oraAttuale, getGiornoOggi, orarioPiuOre, contaPastiLoggati } from './giorno-oggi.js';
 import { prossimaAzione } from './prossima-azione.js';
 import { iconForchetta, iconSpunta } from './icons.js';
 
@@ -82,53 +82,58 @@ export function renderOggi(container, data, persist) {
   const ORA_LIMITE_COLAZIONE = 10;
   function isColazioneOra() {
     const ora = Number(oraAttuale().split(':')[0]);
-    return giorno.pastiLoggati === 0 && ora < ORA_LIMITE_COLAZIONE;
+    return contaPastiLoggati(giorno) === 0 && ora < ORA_LIMITE_COLAZIONE;
   }
 
   function renderSuggerimentoIn(card, tipo) {
-    const { rimasto } = statoAttuale();
-    let combo;
+    // La colazione è una ricetta fissa dal piano (il piano la vuole
+    // intenzionalmente più leggera di proteine rispetto agli altri pasti):
+    // non passa dal motore di spalmatura dinamica, che darebbe quantità
+    // assurde forzando l'intera quota proteica del pasto su un'unica fonte
+    // a bassa densità proteica (uova/albume).
+    let voci;
+    let nota = null;
     if (tipo === 'colazione') {
-      combo = combosPasto.colazioneDefault;
+      voci = colazioneFissa.voci;
     } else {
+      const { rimasto } = statoAttuale();
       const lista = tipo === 'post-workout' ? combosPasto.postWorkout : combosPasto.normale;
       const indice = tipo === 'post-workout' ? indiceComboPostWorkout % lista.length : indiceComboNormale % lista.length;
-      combo = lista[indice];
-    }
+      const combo = lista[indice];
 
-    const suggerimento = suggerisciPasto({
-      rimasto,
-      pastiLoggatiOggi: giorno.pastiLoggati,
-      isPostWorkout: tipo === 'post-workout',
-      combo,
-      databaseAlimenti
-    });
+      const suggerimento = suggerisciPasto({
+        rimasto,
+        pastiLoggatiOggi: contaPastiLoggati(giorno),
+        isPostWorkout: tipo === 'post-workout',
+        combo,
+        databaseAlimenti
+      });
+
+      voci = [suggerimento.proteina, suggerimento.carbo, suggerimento.grasso].filter(Boolean);
+      nota = suggerimento.nota;
+    }
 
     // La proposta viene sempre salvata a crudo (come il resto dell'app): il
     // tasto "mostra cotto" cambia solo la visualizzazione, non i grammi loggati.
     let mostraCotto = false;
-    const puoConvertire = Boolean(
-      rapportiCotturaCrudo[suggerimento.proteina.alimentoId] ||
-      (suggerimento.carbo && rapportiCotturaCrudo[suggerimento.carbo.alimentoId])
-    );
+    const puoConvertire = voci.some((voce) => Boolean(rapportiCotturaCrudo[voce.alimentoId]));
 
-    function descrizioneParte(alimentoId, grammiCrudi) {
-      const rapporto = rapportiCotturaCrudo[alimentoId];
+    function descrizioneParte(voce) {
+      const rapporto = rapportiCotturaCrudo[voce.alimentoId];
       const converti = mostraCotto && rapporto;
-      const grammi = converti ? Math.round(grammiCrudi * rapporto) : grammiCrudi;
-      return `${grammi}g ${databaseAlimenti[alimentoId].nome} (${converti ? 'cotto' : 'crudo'})`;
+      const grammi = converti ? Math.round(voce.grammiCrudi * rapporto) : voce.grammiCrudi;
+      return `${grammi}g ${databaseAlimenti[voce.alimentoId].nome} (${converti ? 'cotto' : 'crudo'})`;
     }
 
     const etichette = { 'post-workout': 'Post-workout', colazione: 'Colazione', normale: 'Adesso' };
 
     function disegna() {
-      const parti = [descrizioneParte(suggerimento.proteina.alimentoId, suggerimento.proteina.grammiCrudi)];
-      if (suggerimento.carbo) parti.push(descrizioneParte(suggerimento.carbo.alimentoId, suggerimento.carbo.grammiCrudi));
+      const parti = voci.map(descrizioneParte);
 
       card.innerHTML = `
         <p class="etichetta">${etichette[tipo]}</p>
         <p>${parti.join(' + ')}</p>
-        ${suggerimento.nota ? `<p class="nota">${suggerimento.nota}</p>` : ''}
+        ${nota ? `<p class="nota">${nota}</p>` : ''}
         <button id="btn-aggiungi-suggerimento" type="button" class="primario">Aggiungi al log</button>
         ${puoConvertire ? `<button id="btn-cotto-suggerimento" type="button">${mostraCotto ? 'Mostra crudo' : 'Mostra cotto'}</button>` : ''}
         ${tipo !== 'colazione' ? '<button id="btn-cambia-proposta" type="button">Cambia proposta</button>' : ''}
@@ -136,11 +141,9 @@ export function renderOggi(container, data, persist) {
 
       card.querySelector('#btn-aggiungi-suggerimento').addEventListener('click', () => {
         const ora = oraAttuale();
-        giorno.alimenti.push({ ora, alimentoId: suggerimento.proteina.alimentoId, grammiCrudi: suggerimento.proteina.grammiCrudi, modalitaInserita: 'crudo' });
-        if (suggerimento.carbo) {
-          giorno.alimenti.push({ ora, alimentoId: suggerimento.carbo.alimentoId, grammiCrudi: suggerimento.carbo.grammiCrudi, modalitaInserita: 'crudo' });
-        }
-        giorno.pastiLoggati += 1;
+        voci.forEach((voce) => {
+          giorno.alimenti.push({ ora, alimentoId: voce.alimentoId, grammiCrudi: voce.grammiCrudi, modalitaInserita: 'crudo' });
+        });
         persist();
         renderTutto();
       });
@@ -231,8 +234,9 @@ export function renderOggi(container, data, persist) {
   // mano che logghi qualcosa (dalla proposta o manualmente).
   function renderPastiOggi() {
     const primoOra = giorno.alimenti.length > 0 ? giorno.alimenti[0].ora : null;
+    const pastiLoggati = contaPastiLoggati(giorno);
     container.querySelector('#pasti-oggi').innerHTML = Array.from({ length: PASTI_AL_GIORNO }, (_, i) => {
-      const fatto = giorno.pastiLoggati > i;
+      const fatto = pastiLoggati > i;
       const orario = primoOra ? orarioPiuOre(primoOra, i * ORE_TRA_PASTI) : null;
       return `
         <div class="pasto-slot${fatto ? ' fatto' : ''}">
@@ -243,9 +247,8 @@ export function renderOggi(container, data, persist) {
     }).join('');
 
     const nota = container.querySelector('#prossimo-pasto-nota');
-    const prossimoIndice = giorno.pastiLoggati;
-    nota.textContent = primoOra && prossimoIndice < PASTI_AL_GIORNO
-      ? `Prossimo pasto: alle ${orarioPiuOre(primoOra, prossimoIndice * ORE_TRA_PASTI)}`
+    nota.textContent = primoOra && pastiLoggati < PASTI_AL_GIORNO
+      ? `Prossimo pasto: alle ${orarioPiuOre(primoOra, pastiLoggati * ORE_TRA_PASTI)}`
       : '';
   }
 
@@ -336,7 +339,6 @@ export function renderOggi(container, data, persist) {
     const grammiCrudi = modalita === 'cotto' && rapporto ? Math.round(grammiInseriti / rapporto) : grammiInseriti;
 
     giorno.alimenti.push({ ora: oraAttuale(), alimentoId, grammiCrudi, modalitaInserita: modalita });
-    giorno.pastiLoggati += 1;
     container.querySelector('#log-grammi').value = '';
     persist();
     renderTutto();

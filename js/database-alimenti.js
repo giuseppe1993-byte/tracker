@@ -14,29 +14,48 @@ export const databaseAlimenti = {
   olioEvo: { nome: 'Olio EVO', kcal: 884, p: 0, f: 100, c: 0, tipo: 'grasso' }
 };
 
-// Cotto = crudo * rapporto (già usati nel piano originale). Alimenti assenti
-// da questa mappa (uova, albume, whey, avena, cremaDiRiso, olioEvo): peso
-// invariato tra crudo e cotto, nessuno switch mostrato per quelli.
+// Cotto = crudo * rapporto. Riso/pasta/couscous assorbono acqua in cottura
+// (pesano di più da cotti, rapporto >1); pollo/carne rossa la perdono (pesano
+// di meno da cotti, rapporto <1 — rese di cottura realistiche ~73-79%).
+// Corretto dopo un test reale: i valori precedenti di pollo/carne rossa erano
+// invertiti (mostravano il cotto più pesante del crudo, fisicamente sbagliato).
+// Alimenti assenti da questa mappa (uova, albume, whey, avena, cremaDiRiso,
+// olioEvo): peso invariato tra crudo e cotto, nessuno switch mostrato per quelli.
 export const rapportiCotturaCrudo = {
-  pollo: 1.375,
+  pollo: 0.727,
   riso: 2.83,
   pasta: 2.36,
-  carneRossa: 1.27,
+  carneRossa: 0.787,
   couscous: 3.36
 };
 
 // Combo predefinite per il motore di raccomandazione, in ordine di rotazione.
+// grassoG: grammi fissi di olio EVO da abbinare (dal piano validato, non
+// spalmati dinamicamente come proteine/carbo — l'olio è una quota costante
+// per tipo di pasto nel piano originale).
 export const combosPasto = {
   normale: [
-    { proteina: 'pollo', carbo: 'riso', grassoZero: false },
-    { proteina: 'pollo', carbo: 'pasta', grassoZero: false },
-    { proteina: 'carneRossa', carbo: 'couscous', grassoZero: false }
+    { proteina: 'pollo', carbo: 'riso', grassoZero: false, grassoG: 15 },
+    { proteina: 'pollo', carbo: 'pasta', grassoZero: false, grassoG: 10 },
+    { proteina: 'carneRossa', carbo: 'couscous', grassoZero: false, grassoG: 8 }
   ],
   postWorkout: [
     { proteina: 'whey', carbo: 'cremaDiRiso', grassoZero: true },
     { proteina: 'pollo', carbo: 'riso', grassoZero: true }
-  ],
-  colazioneDefault: { proteina: 'uovaIntere', carbo: 'avena', grassoZero: false }
+  ]
+};
+
+// Ricetta fissa di colazione dal piano validato — non passa dal motore di
+// spalmatura dinamica: il piano la vuole intenzionalmente più leggera di
+// proteine rispetto agli altri pasti, un'unica fonte proteica (a scelta tra
+// uova/albume) non riesce a coprire in modo realistico una quota "uniforme"
+// di proteine giornaliere (vedi commit che ha introdotto questa costante).
+export const colazioneFissa = {
+  voci: [
+    { alimentoId: 'uovaIntere', grammiCrudi: 110 },
+    { alimentoId: 'albume', grammiCrudi: 250 },
+    { alimentoId: 'avena', grammiCrudi: 35 }
+  ]
 };
 
 export const targetGiornaliero = { kcal: 2145, p: 214, f: 72, c: 161 };

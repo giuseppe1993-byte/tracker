@@ -1,4 +1,5 @@
 import { datiDefault } from './dati-default.js';
+import { contaPastiLoggati } from './giorno-oggi.js';
 
 function coloreToken(nome, fallback) {
   const valore = getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
@@ -53,7 +54,7 @@ export function renderStorico(container, data) {
     .map(([data_, g]) => ({ data: data_, peso: g.peso }));
 
   const giorniTotali = Object.keys(data.pasti).length;
-  const giorniAderenti = Object.values(data.pasti).filter((g) => g.pastiLoggati >= 4).length;
+  const giorniAderenti = Object.values(data.pasti).filter((g) => contaPastiLoggati(g) >= 4).length;
 
   container.innerHTML = `
     <section class="card">

@@ -27,6 +27,18 @@ export function orarioPiuOre(ora, ore) {
   return `${String(nuoveOre).padStart(2, '0')}:${String(nuoviMinuti).padStart(2, '0')}`;
 }
 
+// Numero di pasti loggati oggi, derivato dagli orari distinti in `alimenti`
+// invece di un contatore separato: un contatore incrementato solo in avanti
+// si disallinea non appena si rimuove una voce dalla lista (bug osservato:
+// cancellando tutto il log, il contatore restava alto e il motore di
+// suggerimento finiva per proporre l'intero budget giornaliero in un colpo
+// solo). Ogni azione di log (proposta accettata o inserimento manuale) scrive
+// tutte le sue voci con lo stesso `ora`, quindi contare gli orari distinti
+// equivale a contare le azioni di log, sempre in sincronia con la lista vera.
+export function contaPastiLoggati(giorno) {
+  return new Set(giorno.alimenti.map((voce) => voce.ora)).size;
+}
+
 export function isPostWorkoutOra(giorno) {
   if (giorno.eventiAllenamento.length === 0) return false;
   const ultimoEvento = giorno.eventiAllenamento[giorno.eventiAllenamento.length - 1];

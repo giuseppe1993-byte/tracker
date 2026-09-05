@@ -45,6 +45,27 @@ test('suggerisciPasto normale (0 pasti loggati, 4 rimanenti): proteine spalmate 
   assert.equal(r.nota, null);
 });
 
+test('suggerisciPasto con grassoG nella combo: propone olio EVO in quota fissa (non spalmata)', () => {
+  const rimasto = { kcal: 2145, p: 214, f: 72, c: 161 };
+  const combo = { proteina: 'pollo', carbo: 'riso', grassoZero: false, grassoG: 15 };
+  const r = suggerisciPasto({ rimasto, pastiLoggatiOggi: 0, isPostWorkout: false, combo, databaseAlimenti: db });
+  assert.deepEqual(r.grasso, { alimentoId: 'olioEvo', grammiCrudi: 15 });
+});
+
+test('suggerisciPasto senza grassoG nella combo: grasso resta null', () => {
+  const rimasto = { kcal: 2145, p: 214, f: 72, c: 161 };
+  const combo = { proteina: 'pollo', carbo: 'riso', grassoZero: false };
+  const r = suggerisciPasto({ rimasto, pastiLoggatiOggi: 0, isPostWorkout: false, combo, databaseAlimenti: db });
+  assert.equal(r.grasso, null);
+});
+
+test('suggerisciPasto con grassoZero: niente olio anche se la combo ha grassoG', () => {
+  const rimasto = { kcal: 2145, p: 214, f: 72, c: 161 };
+  const combo = { proteina: 'whey', carbo: 'cremaDiRiso', grassoZero: true, grassoG: 15 };
+  const r = suggerisciPasto({ rimasto, pastiLoggatiOggi: 0, isPostWorkout: true, combo, databaseAlimenti: db });
+  assert.equal(r.grasso, null);
+});
+
 test('suggerisciPasto post-workout: quota carbo 1.5x rispetto a un pasto normale', () => {
   const rimasto = { kcal: 2145, p: 214, f: 72, c: 161 };
   const combo = { proteina: 'whey', carbo: 'cremaDiRiso', grassoZero: true };

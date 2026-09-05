@@ -29,7 +29,7 @@ export function calcolaRimasto(target, consumato) {
   };
 }
 
-// combo = { proteina: alimentoId, carbo: alimentoId | null, grassoZero: bool }
+// combo = { proteina: alimentoId, carbo: alimentoId | null, grassoZero: bool, grassoG?: number }
 export function suggerisciPasto({ rimasto, pastiLoggatiOggi, isPostWorkout, combo, databaseAlimenti }) {
   const pastiRimanenti = Math.max(1, PASTI_AL_GIORNO - pastiLoggatiOggi);
 
@@ -49,9 +49,17 @@ export function suggerisciPasto({ rimasto, pastiLoggatiOggi, isPostWorkout, comb
   const grammiCarbo = carbo && carbo.c > 0 ? (cTarget / carbo.c) * 100 : 0;
 
   const arrotonda = (g) => Math.max(0, Math.floor(g / 5) * 5);
+
+  // Il grasso non si spalma sul budget rimasto come proteine/carbo: è una
+  // quota fissa per tipo di pasto, presa dal piano già validato.
+  const grasso = !combo.grassoZero && combo.grassoG
+    ? { alimentoId: 'olioEvo', grammiCrudi: combo.grassoG }
+    : null;
+
   return {
     proteina: { alimentoId: combo.proteina, grammiCrudi: arrotonda(grammiProteina) },
     carbo: carbo ? { alimentoId: combo.carbo, grammiCrudi: arrotonda(grammiCarbo) } : null,
+    grasso,
     nota: combo.grassoZero ? 'Pasto post-workout: niente olio/grassi aggiunti.' : null
   };
 }

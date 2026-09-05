@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { oggiISO, getGiornoOggi, isPostWorkoutOra, orarioPiuOre } from './giorno-oggi.js';
+import { oggiISO, getGiornoOggi, isPostWorkoutOra, orarioPiuOre, contaPastiLoggati } from './giorno-oggi.js';
 
 test('oggiISO restituisce una data in formato YYYY-MM-DD', () => {
   assert.match(oggiISO(), /^\d{4}-\d{2}-\d{2}$/);
@@ -74,4 +74,35 @@ test('orarioPiuOre somma ore senza superare la mezzanotte', () => {
 test('orarioPiuOre fa il wrap-around oltre la mezzanotte', () => {
   assert.equal(orarioPiuOre('22:00', 4), '02:00');
   assert.equal(orarioPiuOre('23:30', 12), '11:30');
+});
+
+test('contaPastiLoggati: zero alimenti -> zero pasti', () => {
+  assert.equal(contaPastiLoggati({ alimenti: [] }), 0);
+});
+
+test('contaPastiLoggati: due voci con lo stesso orario contano come un solo pasto', () => {
+  const giorno = { alimenti: [
+    { ora: '12:30', alimentoId: 'pollo', grammiCrudi: 200 },
+    { ora: '12:30', alimentoId: 'riso', grammiCrudi: 90 }
+  ] };
+  assert.equal(contaPastiLoggati(giorno), 1);
+});
+
+test('contaPastiLoggati: orari diversi contano pasti distinti', () => {
+  const giorno = { alimenti: [
+    { ora: '08:00', alimentoId: 'uovaIntere', grammiCrudi: 110 },
+    { ora: '12:30', alimentoId: 'pollo', grammiCrudi: 200 },
+    { ora: '12:30', alimentoId: 'riso', grammiCrudi: 90 }
+  ] };
+  assert.equal(contaPastiLoggati(giorno), 2);
+});
+
+test('contaPastiLoggati: rimuovere una voce aggiorna subito il conteggio (niente contatore separato da disallineare)', () => {
+  const giorno = { alimenti: [
+    { ora: '08:00', alimentoId: 'pollo', grammiCrudi: 200 },
+    { ora: '12:30', alimentoId: 'riso', grammiCrudi: 90 }
+  ] };
+  assert.equal(contaPastiLoggati(giorno), 2);
+  giorno.alimenti.splice(0, 1);
+  assert.equal(contaPastiLoggati(giorno), 1);
 });
